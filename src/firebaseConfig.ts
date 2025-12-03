@@ -1,12 +1,13 @@
+
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 import { getMessaging } from "firebase/messaging";
 
-// Safely access environment variables
+// Safe Environment Access
 const meta = import.meta as any;
-const env = meta.env || {};
+const env = meta && meta.env ? meta.env : {};
 
 const firebaseConfig = {
   apiKey: env.VITE_FIREBASE_API_KEY || "AIzaSyC_dq9Jg4Atq6j28_kdRkh_1LyAIZ3Ethg",
@@ -17,11 +18,18 @@ const firebaseConfig = {
   appId: env.VITE_FIREBASE_APP_ID
 };
 
+// Initialize Firebase only if API key is present
 const app = firebaseConfig.apiKey ? initializeApp(firebaseConfig) : null;
 
 export const db = app ? getFirestore(app) : null;
 export const auth = app ? getAuth(app) : null;
 export const storage = app ? getStorage(app) : null;
-export const messaging = app ? getMessaging(app) : null;
+
+// Only initialize messaging if appId is present to prevent crashes
+export const messaging = (app && firebaseConfig.appId) ? getMessaging(app) : null;
+
+if (app && !firebaseConfig.appId) {
+  console.warn("Firebase Messaging skipped: 'appId' is missing in configuration. Notifications will be disabled.");
+}
 
 export const VAPID_KEY = "BEZ7vfKZZRMgyHVygdvMmI-lIn8UwfYXLeZBAHE_J03pScjv6JMbX0GXahuJ2xFnbeCNbqFdt49eG9EoMf4AEj4";
