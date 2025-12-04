@@ -1,6 +1,6 @@
 {
   "name": "Lumen Academy",
-  "description": "Hosted at www.lumen2.eu.netlify.app. A futuristic, industrial micro-learning platform for technicians featuring real-time AI grading, skill trees, and anti-overload safeguards.",
+  "description": "Hosted at www.lumen2.eu. A futuristic, industrial micro-learning platform for technicians featuring real-time AI grading, skill trees, and anti-overload safeguards.",
   "requestFramePermissions": [
     "microphone"
   ]

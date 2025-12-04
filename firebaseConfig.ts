@@ -17,7 +17,7 @@ const getEnv = () => {
 const env = getEnv();
 
 const firebaseConfig = {
-  apiKey: env.VITE_FIREBASE_API_KEY || "AIzaSyC_dq9Jg4Atq6j28_kdRkh_1LyAIZ3Ethg",
+  apiKey: env.VITE_FIREBASE_API_KEY || "AIzaSyDJADf2UKQzNB_OiR6WYiUT0WSYS3VoQno",
   authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || "lumen-academy.firebaseapp.com",
   projectId: env.VITE_FIREBASE_PROJECT_ID || "lumen-academy",
   storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || "lumen-academy.firebasestorage.app",
