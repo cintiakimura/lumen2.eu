@@ -2,4 +2,5 @@
 
 [build.environment] NODE_VERSION = "18"
 
-Redirects for a single-page app (add to netlify.toml or add a file named _redirects in public): [[redirects]] from = "/*" to = "/index.html" status = 200
+[[redirects]] from = "/*" to = "/index.html" status = 200
+
