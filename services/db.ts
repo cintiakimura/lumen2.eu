@@ -228,6 +228,17 @@ export const createCourse = async (courseData: Unit): Promise<boolean> => {
     }
 }
 
+export const updateCourse = async (courseId: string, updates: Partial<Unit>): Promise<boolean> => {
+    if (VITE_DEMO_MODE || !db) return true;
+    try {
+        await updateDoc(doc(db, "courses", courseId), updates);
+        return true;
+    } catch (e) {
+        console.warn("Failed to update course, using fallback.", e);
+        return false;
+    }
+}
+
 // --- TASKS ---
 export interface Task {
     id: string;
