@@ -6,7 +6,7 @@ let client: GoogleGenAI | null = null;
 try {
   // The API key must be obtained exclusively from process.env.API_KEY.
   if (process.env.API_KEY) {
-    client = new GoogleGenAI({ apiKey: import.meta.env.API_KEY=AIzaSyC_dq9Jg4Atq6j28_kdRkh_1LyAIZ3Ethg
+    client = new GoogleGenAI({ apiKey: import.meta.env.API_KEY = AIzaSyC_dq9Jg4Atq6j28_kdRkh_1LyAIZ3Ethg
  });
   } else {
     console.warn("Gemini API Key not found. Chat features will be disabled.");
