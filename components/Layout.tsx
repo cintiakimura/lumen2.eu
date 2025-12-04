@@ -15,9 +15,13 @@ import {
   X,
   Hexagon,
   ShieldCheck,
-  Bell
+  Bell,
+  Database,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { requestNotificationPermission, onMessageListener } from '../services/notificationService';
+import { checkDBConnection } from '../services/db';
 import { Toaster, toast } from 'react-hot-toast';
 
 interface SidebarItemProps {
@@ -96,6 +100,7 @@ export const Layout = ({ children }: PropsWithChildren) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [theme, setTheme] = useState('dark');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const location = useLocation();
 
   useEffect(() => {
@@ -108,6 +113,13 @@ export const Layout = ({ children }: PropsWithChildren) => {
   }, [theme]);
 
   useEffect(() => {
+    // Check Database Connection
+    const checkStatus = async () => {
+        const connected = await checkDBConnection();
+        setIsConnected(connected);
+    };
+    checkStatus();
+
     // Listen for foreground messages
     onMessageListener().then((payload: any) => {
       console.log('Received foreground message: ', payload);
@@ -133,6 +145,19 @@ export const Layout = ({ children }: PropsWithChildren) => {
     } else {
       toast.error("Could not enable notifications.");
     }
+  };
+
+  const handleDBStatusClick = () => {
+      if (!isConnected) {
+          toast((t) => (
+              <div className="text-sm">
+                  <b>System Offline</b>
+                  <p>Using local mock data. To connect to real data, ensure Firebase API Keys are configured in your environment.</p>
+              </div>
+          ), { icon: '⚠️', duration: 5000 });
+      } else {
+          toast.success("Connected to Google Firestore");
+      }
   };
 
   const navItems = [
@@ -256,6 +281,21 @@ export const Layout = ({ children }: PropsWithChildren) => {
           </div>
 
           <div className="flex items-center gap-4">
+            
+            {/* DB STATUS INDICATOR */}
+            <button 
+              onClick={handleDBStatusClick}
+              className={`
+                hidden md:flex items-center px-3 py-1.5 rounded-full border shadow-[0_0_10px_rgba(0,0,0,0.2)] hover:scale-105 transition-transform
+                ${isConnected ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400'}
+              `}
+            >
+              {isConnected ? <Wifi size={12} className="mr-2" /> : <WifiOff size={12} className="mr-2" />}
+              <span className="text-[10px] font-mono tracking-wider">
+                {isConnected === null ? 'CONNECTING...' : isConnected ? 'DB: GOOGLE' : 'DB: OFFLINE'}
+              </span>
+            </button>
+
             <div className="hidden md:flex items-center px-3 py-1.5 rounded-full bg-lumen-primary/5 border border-lumen-primary/20 shadow-[0_0_10px_rgba(0,198,0,0.1)]">
               <span className="w-1.5 h-1.5 rounded-full bg-lumen-primary animate-pulse mr-2"></span>
               <span className="text-[10px] text-lumen-primary font-mono tracking-wider">SYSTEM OPTIMAL</span>

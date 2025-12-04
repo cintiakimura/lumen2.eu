@@ -1,3 +1,4 @@
+
 import { 
     collection, 
     getDocs, 
@@ -5,12 +6,27 @@ import {
     query, 
     where, 
     doc, 
-    setDoc
+    setDoc,
+    limit
 } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../firebaseConfig";
 import { Client, User, Unit, Submission } from "../types";
 import { MOCK_CLIENTS, MOCK_USERS, MOCK_UNITS, VITE_DEMO_MODE } from "../constants";
+
+// --- CONNECTION CHECK ---
+export const checkDBConnection = async (): Promise<boolean> => {
+    if (VITE_DEMO_MODE || !db) return false;
+    try {
+        // Try to fetch a single document to verify connection
+        // We use 'clients' collection as it should exist after seeding
+        await getDocs(query(collection(db, "clients"), limit(1)));
+        return true;
+    } catch (e) {
+        console.warn("Database connection check failed:", e);
+        return false;
+    }
+};
 
 // --- CLIENTS ---
 export const getClients = async (): Promise<Client[]> => {
@@ -18,9 +34,10 @@ export const getClients = async (): Promise<Client[]> => {
     
     try {
         const snapshot = await getDocs(collection(db, "clients"));
+        if (snapshot.empty) return MOCK_CLIENTS;
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
     } catch (e) {
-        console.error("Error fetching clients:", e);
+        console.warn("DB Error (getClients):", e);
         return MOCK_CLIENTS;
     }
 };
@@ -30,7 +47,12 @@ export const createClient = async (clientData: Client) => {
         console.log("Mock Create Client:", clientData);
         return;
     }
-    await setDoc(doc(db, "clients", clientData.id), clientData);
+    try {
+        await setDoc(doc(db, "clients", clientData.id), clientData);
+    } catch (e) {
+        console.error("Failed to create client:", e);
+        throw e;
+    }
 };
 
 // --- USERS ---
@@ -45,16 +67,26 @@ export const getUsers = async (clientId?: string): Promise<User[]> => {
         const q = clientId ? query(ref, where("clientId", "==", clientId)) : ref;
         
         const snapshot = await getDocs(q);
+        if (snapshot.empty) {
+             if (clientId) return MOCK_USERS.filter(u => u.clientId === clientId);
+             return MOCK_USERS;
+        }
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
     } catch (e) {
-        console.error("Error fetching users:", e);
-        return [];
+        console.warn("DB Error (getUsers):", e);
+        if (clientId) return MOCK_USERS.filter(u => u.clientId === clientId);
+        return MOCK_USERS;
     }
 };
 
 export const createUser = async (userData: User) => {
     if (VITE_DEMO_MODE || !db) return;
-    await setDoc(doc(db, "users", userData.id), userData);
+    try {
+        await setDoc(doc(db, "users", userData.id), userData);
+    } catch (e) {
+        console.error("Failed to create user:", e);
+        throw e;
+    }
 };
 
 // --- COURSES ---
@@ -65,18 +97,24 @@ export const getCourses = async (clientId?: string): Promise<Unit[]> => {
 
     try {
         const snapshot = await getDocs(collection(db, "courses"));
+        if (snapshot.empty) return MOCK_UNITS.filter(u => !u.clientId || u.clientId === clientId);
+
         const allCourses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Unit));
-        
         return allCourses.filter(u => !u.clientId || u.clientId === clientId);
     } catch (e) {
-        console.error("Error fetching courses:", e);
-        return [];
+        console.warn("DB Error (getCourses):", e);
+        return MOCK_UNITS.filter(u => !u.clientId || u.clientId === clientId);
     }
 };
 
 export const createCourse = async (courseData: Unit) => {
     if (VITE_DEMO_MODE || !db) return;
-    await setDoc(doc(db, "courses", courseData.id), courseData);
+    try {
+        await setDoc(doc(db, "courses", courseData.id), courseData);
+    } catch (e) {
+        console.error("Failed to create course:", e);
+        throw e;
+    }
 }
 
 // --- TASKS ---
@@ -91,24 +129,38 @@ export interface Task {
 export const getTasks = async (unitId: string): Promise<Task[]> => {
     if (VITE_DEMO_MODE || !db) {
         return [
-            { id: 'T-01', unitId, title: 'Foundations Task 1', difficulty: 'Easy', completed: true },
-            { id: 'T-02', unitId, title: 'Advanced Logic', difficulty: 'Medium', completed: false }
+            { id: `T-${unitId}-1`, unitId, title: 'Concept Verification', difficulty: 'Easy', completed: true },
+            { id: `T-${unitId}-2`, unitId, title: 'Practical Application', difficulty: 'Medium', completed: false }
         ];
     }
     
     try {
         const q = query(collection(db, "tasks"), where("unitId", "==", unitId));
         const snapshot = await getDocs(q);
+        if (snapshot.empty) {
+             return [
+                { id: `T-${unitId}-1`, unitId, title: 'Concept Verification', difficulty: 'Easy', completed: false },
+                { id: `T-${unitId}-2`, unitId, title: 'Practical Application', difficulty: 'Medium', completed: false }
+            ];
+        }
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
     } catch (e) {
-        console.error("Error fetching tasks", e);
-        return [];
+        console.warn("Error fetching tasks:", e);
+        return [
+            { id: `T-${unitId}-1`, unitId, title: 'Concept Verification', difficulty: 'Easy', completed: false },
+            { id: `T-${unitId}-2`, unitId, title: 'Practical Application', difficulty: 'Medium', completed: false }
+        ];
     }
 }
 
 export const createTask = async (task: Task) => {
     if (VITE_DEMO_MODE || !db) return;
-    await setDoc(doc(db, "tasks", task.id), task);
+    try {
+        await setDoc(doc(db, "tasks", task.id), task);
+    } catch (e) {
+        console.error("Failed to create task:", e);
+        throw e;
+    }
 }
 
 // --- SUBMISSIONS ---
@@ -117,14 +169,31 @@ export const saveSubmission = async (submission: Submission) => {
         console.log("Mock Save Submission", submission);
         return;
     }
-    await addDoc(collection(db, "submissions"), submission);
+    try {
+        await addDoc(collection(db, "submissions"), submission);
+    } catch (e) {
+        console.error("Failed to save submission:", e);
+        throw e;
+    }
 }
 
 // --- STORAGE ---
 export const uploadAsset = async (file: File, path: string): Promise<string> => {
-    if (VITE_DEMO_MODE || !storage) throw new Error("Storage not configured");
+    if (VITE_DEMO_MODE || !storage) {
+        // Mock upload delay and return fake URL
+        return new Promise(resolve => {
+            setTimeout(() => {
+                resolve(`https://mock-storage.lumen.ai/${path}`);
+            }, 1500);
+        });
+    }
     
-    const storageRef = ref(storage, path);
-    const snapshot = await uploadBytesResumable(storageRef, file);
-    return await getDownloadURL(snapshot.ref);
+    try {
+        const storageRef = ref(storage, path);
+        const snapshot = await uploadBytesResumable(storageRef, file);
+        return await getDownloadURL(snapshot.ref);
+    } catch (e) {
+        console.error("Storage upload failed:", e);
+        throw e;
+    }
 }
