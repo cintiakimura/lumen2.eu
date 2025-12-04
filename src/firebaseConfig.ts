@@ -1,4 +1,3 @@
-
 // @ts-ignore
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
@@ -8,10 +7,18 @@ import { getMessaging } from "firebase/messaging";
 
 const getEnv = () => {
   try {
-    return (import.meta as any).env || {};
+    // Check import.meta.env for Vite
+    if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+      return (import.meta as any).env;
+    }
+    // Fallback to process.env if available
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env;
+    }
   } catch (e) {
-    return {};
+    // Ignore error
   }
+  return {};
 };
 
 const env = getEnv();
@@ -32,13 +39,13 @@ let storageInstance = null;
 let messagingInstance = null;
 
 try {
-    if (firebaseConfig.apiKey) {
+    if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "undefined") {
         app = initializeApp(firebaseConfig);
         dbInstance = getFirestore(app);
         authInstance = getAuth(app);
         storageInstance = getStorage(app);
         
-        if (firebaseConfig.appId) {
+        if (firebaseConfig.appId && firebaseConfig.messagingSenderId) {
             try {
                 messagingInstance = getMessaging(app);
             } catch (e) {

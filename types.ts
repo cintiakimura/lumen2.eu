@@ -98,3 +98,11 @@ export interface User {
   rank: Rank;
   badges: Badge[];
 }
+
+export interface Task {
+  id: string;
+  unitId: string;
+  title: string;
+  difficulty: string;
+  completed: boolean;
+}

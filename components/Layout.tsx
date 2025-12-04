@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, PropsWithChildren } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
@@ -117,7 +116,8 @@ export const Layout = ({ children }: PropsWithChildren) => {
     };
     checkStatus();
 
-    onMessageListener().then((payload: any) => {
+    // Use new callback pattern
+    onMessageListener((payload: any) => {
       toast(payload?.notification?.title || "New Notification", {
         icon: '🔔',
         style: { background: '#0a1410', color: '#fff', border: '1px solid #00c600' },
@@ -142,7 +142,7 @@ export const Layout = ({ children }: PropsWithChildren) => {
           toast((t) => (
               <div className="text-sm">
                   <b>System Offline</b>
-                  <p>Using local mock data. Configure Firebase API Keys to connect.</p>
+                  <p>Using local persistent cache. Configure Firebase API Keys for cloud sync.</p>
               </div>
           ), { icon: '⚠️', duration: 5000 });
       } else {
@@ -289,7 +289,7 @@ export const Layout = ({ children }: PropsWithChildren) => {
             >
               {isConnected ? <Wifi size={12} className="mr-2" /> : <WifiOff size={12} className="mr-2" />}
               <span className="text-[10px] font-mono tracking-wider">
-                {isConnected === null ? 'CONNECTING...' : isConnected ? 'DB: GOOGLE' : 'DB: OFFLINE'}
+                {isConnected === null ? 'CONNECTING...' : isConnected ? 'DB: GOOGLE' : 'DB: LOCAL'}
               </span>
             </button>
             <button onClick={enableNotifications} className={`p-2 rounded-full hover:bg-white/10 transition-colors ${notificationsEnabled ? 'text-lumen-primary' : 'text-gray-400'}`}>

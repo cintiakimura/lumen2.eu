@@ -1,5 +1,3 @@
-
-
 import { 
     collection, 
     getDocs, 
@@ -14,17 +12,32 @@ import {
 } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL, listAll } from "firebase/storage";
 import { db, storage } from "../firebaseConfig";
-import { Client, User, Unit, Submission, UserRole, Rank } from "../types";
+import { Client, User, Unit, Submission, UserRole, Rank, Task } from "../types";
 import { MOCK_CLIENTS, MOCK_USERS, MOCK_UNITS, VITE_DEMO_MODE, RANKS } from "../constants";
 
-// --- LOCAL SESSION CACHE (Fallback) ---
-// This ensures that if the DB write fails (permissions/network), the app still functions
-// for the current session by storing the data in memory.
-const LOCAL_CLIENTS: Client[] = [];
-const LOCAL_USERS: User[] = [];
-const LOCAL_COURSES: Unit[] = [];
-const LOCAL_TASKS: Task[] = [];
-const LOCAL_SUBMISSIONS: Submission[] = [];
+// --- LOCAL SESSION CACHE (Persistent) ---
+const loadCache = <T>(key: string, defaultVal: T[]): T[] => {
+    try {
+        const item = localStorage.getItem(key);
+        return item ? JSON.parse(item) : defaultVal;
+    } catch {
+        return defaultVal;
+    }
+};
+
+const saveCache = (key: string, data: any[]) => {
+    try {
+        localStorage.setItem(key, JSON.stringify(data));
+    } catch (e) {
+        console.warn("Failed to save to localStorage", e);
+    }
+};
+
+const LOCAL_CLIENTS: Client[] = loadCache('lumen_local_clients', []);
+const LOCAL_USERS: User[] = loadCache('lumen_local_users', []);
+const LOCAL_COURSES: Unit[] = loadCache('lumen_local_courses', []);
+const LOCAL_TASKS: Task[] = loadCache('lumen_local_tasks', []);
+const LOCAL_SUBMISSIONS: Submission[] = loadCache('lumen_local_submissions', []);
 
 // --- HELPER: MERGE DATA ---
 const mergeData = <T extends { id: string }>(mock: T[], local: T[], dbData: T[]): T[] => {
@@ -56,7 +69,6 @@ export const checkStorageConnection = async (): Promise<boolean> => {
         await listAll(storageRef);
         return true;
     } catch (e: any) {
-        // storage/unauthorized is a 'connection' success (service reachable), just permission denied
         if (e.code === 'storage/unauthorized') return true; 
         if (e.code === 'storage/retry-limit-exceeded') return false;
         return false;
@@ -81,19 +93,18 @@ export const getClients = async (): Promise<Client[]> => {
 };
 
 export const createClient = async (clientData: Client): Promise<boolean> => {
-    // Optimistically cache locally
     LOCAL_CLIENTS.push(clientData);
+    saveCache('lumen_local_clients', LOCAL_CLIENTS);
 
     if (VITE_DEMO_MODE || !db) {
-        console.log("Mock Create Client:", clientData);
         return true;
     }
     try {
         await setDoc(doc(db, "clients", clientData.id), clientData);
         return true;
     } catch (e) {
-        console.warn("Failed to create client (Firebase), using local fallback.", e);
-        return true; // Return true so UI shows success
+        console.warn("Failed to create client (Firebase), saved locally.", e);
+        return true;
     }
 };
 
@@ -123,15 +134,15 @@ export const getUsers = async (clientId?: string): Promise<User[]> => {
 };
 
 export const createUser = async (userData: User): Promise<boolean> => {
-    // Optimistic Cache
     LOCAL_USERS.push(userData);
+    saveCache('lumen_local_users', LOCAL_USERS);
 
     if (VITE_DEMO_MODE || !db) return true;
     try {
         await setDoc(doc(db, "users", userData.id), userData);
         return true;
     } catch (e) {
-        console.warn("Failed to create user (Firebase), falling back to local session.", e);
+        console.warn("Failed to create user (Firebase), saved locally.", e);
         return true;
     }
 };
@@ -212,6 +223,7 @@ export const updateUserXP = async (userId: string, amount: number): Promise<{ ne
         localUser.xp = (localUser.xp || 0) + amount;
         const newRank = calcRank(localUser.xp, localUser.rank);
         if (newRank) localUser.rank = newRank;
+        saveCache('lumen_local_users', LOCAL_USERS); 
         return { newXP: localUser.xp, newRank };
     }
 
@@ -247,6 +259,7 @@ export const getCourses = async (clientId?: string): Promise<Unit[]> => {
 
 export const createCourse = async (courseData: Unit): Promise<boolean> => {
     LOCAL_COURSES.push(courseData);
+    saveCache('lumen_local_courses', LOCAL_COURSES);
 
     if (VITE_DEMO_MODE || !db) return true;
     try {
@@ -259,10 +272,10 @@ export const createCourse = async (courseData: Unit): Promise<boolean> => {
 }
 
 export const updateCourse = async (courseId: string, updates: Partial<Unit>): Promise<boolean> => {
-    // Update local cache first
     const localIdx = LOCAL_COURSES.findIndex(c => c.id === courseId);
     if (localIdx >= 0) {
         LOCAL_COURSES[localIdx] = { ...LOCAL_COURSES[localIdx], ...updates };
+        saveCache('lumen_local_courses', LOCAL_COURSES);
     }
 
     if (VITE_DEMO_MODE || !db) return true;
@@ -276,16 +289,8 @@ export const updateCourse = async (courseId: string, updates: Partial<Unit>): Pr
 }
 
 // --- TASKS ---
-export interface Task {
-    id: string;
-    unitId: string;
-    title: string;
-    difficulty: string;
-    completed: boolean;
-}
-
 export const getTasks = async (unitId: string): Promise<Task[]> => {
-    const mockTasks = [
+    const mockTasks: Task[] = [
         { id: `T-${unitId}-1`, unitId, title: 'Concept Verification', difficulty: 'Easy', completed: true },
         { id: `T-${unitId}-2`, unitId, title: 'Practical Application', difficulty: 'Medium', completed: false }
     ];
@@ -310,6 +315,7 @@ export const getTasks = async (unitId: string): Promise<Task[]> => {
 
 export const createTask = async (task: Task): Promise<boolean> => {
     LOCAL_TASKS.push(task);
+    saveCache('lumen_local_tasks', LOCAL_TASKS);
 
     if (VITE_DEMO_MODE || !db) return true;
     try {
@@ -324,6 +330,7 @@ export const createTask = async (task: Task): Promise<boolean> => {
 // --- SUBMISSIONS ---
 export const saveSubmission = async (submission: Submission): Promise<boolean> => {
     LOCAL_SUBMISSIONS.push(submission);
+    saveCache('lumen_local_submissions', LOCAL_SUBMISSIONS);
 
     if (VITE_DEMO_MODE || !db) return true;
     try {
@@ -345,12 +352,9 @@ const mockUpload = (path: string): Promise<string> => {
 };
 
 export const uploadAsset = async (file: File, path: string): Promise<string> => {
-    // 1. Mock Mode
     if (VITE_DEMO_MODE || !storage) {
         return mockUpload(path);
     }
-    
-    // 2. Real Upload with Fallback
     try {
         const storageRef = ref(storage, path);
         const snapshot = await uploadBytesResumable(storageRef, file);
