@@ -1,11 +1,7 @@
 [[redirects]]
-  from = "/old-path"
-  to = "/new-path"
-  status = 301
-  force = false
-  query = {path = ":path"} #  apply this rule for /old-path?path=example
-  conditions = {Language = ["en","es"], Country = ["US"]}
-
-[[redirects]]
-  from = "/news"
-  to = "/blog"
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  [build]
+  command = "npm run build"  # Or "yarn build", etc.
+  publish = "dist"  # Adjust to your build output folder, e.g., "build" for Create React App
