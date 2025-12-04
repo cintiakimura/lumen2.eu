@@ -49,6 +49,10 @@ export interface Unit {
   // Micro-learning content
   content?: string; 
   nodes?: { id: string; title: string; type: 'video' | 'read' | 'quiz'; completed: boolean }[];
+  // Gamification & Map Data
+  missionType?: 'Main Quest' | 'Side Quest';
+  coordinates?: { x: number; y: number }; // Percentage 0-100
+  xpReward?: number;
 }
 
 export interface ChatMessage {

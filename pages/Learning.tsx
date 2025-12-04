@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { PlayCircle, CheckCircle, Lock, BookOpen, Star, Mic, Send, Bot, User, ArrowRight, RotateCcw } from 'lucide-react';
+import { PlayCircle, CheckCircle, Lock, BookOpen, Star, Mic, Send, Bot, User, ArrowRight, X, Zap, Shield, HelpCircle, Terminal } from 'lucide-react';
 import { runAdaptiveTutor } from '../services/geminiService';
 import { getCourses, updateUserXP } from '../services/db';
 import { Unit } from '../types';
@@ -13,7 +13,7 @@ const Learning = () => {
   const [units, setUnits] = useState<Unit[]>([]);
   const [activeUnit, setActiveUnit] = useState<Unit | null>(null);
   const [activeNode, setActiveNode] = useState<any | null>(null);
-  const [mode, setMode] = useState<'path' | 'content' | 'test'>('path');
+  const [mode, setMode] = useState<'map' | 'briefing' | 'content' | 'test'>('map');
 
   // Chat/Test State
   const [messages, setMessages] = useState<{role: 'user' | 'model', text: string}[]>([]);
@@ -35,24 +35,32 @@ const Learning = () => {
       scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleNodeClick = (unit: Unit, node: any) => {
-      if (unit.status === 'locked') return;
-      
+  // Handle Node Click -> Open Briefing
+  const handleSystemSelect = (unit: Unit) => {
+      if (unit.status === 'locked') {
+          toast.error("System Locked. Complete previous missions first.", { icon: '🔒' });
+          return;
+      }
       setActiveUnit(unit);
-      setActiveNode(node);
-      
-      if (node.type === 'quiz') {
-          setMode('test');
-          startTest(unit);
-      } else {
+      setMode('briefing');
+  };
+
+  const startMission = () => {
+      if (!activeUnit) return;
+      if (activeUnit.nodes && activeUnit.nodes.length > 0) {
+          setActiveNode(activeUnit.nodes[0]);
           setMode('content');
+      } else {
+          // Direct to test if no content nodes
+          startTest(activeUnit);
       }
   };
 
   const startTest = (unit: Unit) => {
+      setMode('test');
       setMessages([{
           role: 'model',
-          text: `Welcome to the Gauntlet, ${user?.name}. I am the Guardian of this module. To proceed, I must verify your understanding of: ${unit.title}. Are you ready?`
+          text: `SYSTEM OVERRIDE DETECTED.\n\nIdentity confirmed: ${user?.name}.\nTo secure this node, you must demonstrate mastery of: ${unit.title.toUpperCase()}.\n\nStandby for query...`
       }]);
       setTestPassed(false);
   };
@@ -77,239 +85,286 @@ const Learning = () => {
   };
 
   const handlePass = async () => {
-      toast.success("Module Mastered! +500 XP");
+      if (!activeUnit) return;
+      const xpGain = activeUnit.xpReward || 500;
+      
       // Update XP
       if (user) {
-         const { newRank } = await updateUserXP(user.id, 500);
-         if (newRank) toast(`PROMOTED TO RANK: ${newRank.toUpperCase()}!`, { icon: '🎖️' });
+         const { newRank } = await updateUserXP(user.id, xpGain);
+         
+         // Visual Feedback Delay
+         setTimeout(() => {
+             toast.custom((t) => (
+                 <div className="bg-black border-2 border-lumen-primary p-6 rounded-2xl shadow-[0_0_30px_#00c600] text-center animate-in zoom-in">
+                     <div className="text-4xl mb-2">🎉</div>
+                     <h1 className="text-2xl font-bold text-white mb-1">MISSION ACCOMPLISHED</h1>
+                     <p className="text-lumen-primary font-mono text-lg">+{xpGain} XP</p>
+                     {newRank && <p className="text-yellow-400 font-bold mt-2 animate-bounce">RANK UP! {newRank}</p>}
+                 </div>
+             ), { duration: 4000 });
+         }, 500);
       }
       
-      // Mark as completed locally (simplified)
-      if (activeUnit) {
-          const updatedUnits = units.map(u => {
-              if (u.id === activeUnit.id) {
-                  return { ...u, status: 'completed' as const, progress: 100 };
-              }
-              // Unlock next
-              return u; 
-          });
-          setUnits(updatedUnits);
-      }
+      // Mark as completed locally
+      const updatedUnits = units.map(u => {
+          if (u.id === activeUnit.id) {
+              return { ...u, status: 'completed' as const, progress: 100 };
+          }
+          // Simple logic: Unlock next locked unit
+          return u; 
+      });
+      // In a real app, logic to unlock the specific next node would be here
+      // For demo, we just unlock everything or one by one.
+      setUnits(updatedUnits);
   };
 
-  const handleVoiceInput = () => {
-      // Mock voice input for now
-      toast("Voice Input Active... (Listening)", { icon: '🎙️' });
-      setTimeout(() => {
-          setInput("The torque is force times radius times sine theta.");
-      }, 1500);
-  }
-
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col lg:flex-row gap-8">
+    <div className="h-[calc(100vh-8rem)] relative overflow-hidden bg-[#050a08] rounded-3xl border border-white/5 shadow-2xl">
         
-        {/* LEFT COLUMN: THE PATH */}
-        <div className="lg:w-1/3 bg-lumen-surface/60 backdrop-blur-xl border border-white/5 rounded-3xl p-8 overflow-y-auto relative">
-            <h2 className="text-2xl font-light text-white mb-8 text-center">Your Journey</h2>
-            
-            <div className="relative space-y-12">
-                {/* Connecting Line */}
-                <div className="absolute left-8 top-8 bottom-8 w-1 bg-white/10 z-0 rounded-full"></div>
+        {/* --- MODE: MAP (The Galaxy View) --- */}
+        {mode === 'map' && (
+            <div className="absolute inset-0 overflow-auto cursor-grab active:cursor-grabbing custom-scrollbar">
+                {/* Background Grid */}
+                <div className="absolute inset-0 w-[200%] h-[200%] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none"></div>
+                <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at center, transparent 0%, #050a08 100%)' }}></div>
+                
+                {/* MAP CONTAINER */}
+                <div className="relative w-full h-full min-h-[600px] flex items-center justify-center">
+                    
+                    {/* SVG Connections */}
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                        <defs>
+                             <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="4" result="blur" />
+                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                        </defs>
+                        {units.map((unit, i) => {
+                             if (i === units.length - 1) return null;
+                             const next = units[i+1];
+                             if (!unit.coordinates || !next.coordinates) return null;
+                             
+                             return (
+                                 <line 
+                                    key={i}
+                                    x1={`${unit.coordinates.x}%`} 
+                                    y1={`${unit.coordinates.y}%`} 
+                                    x2={`${next.coordinates.x}%`} 
+                                    y2={`${next.coordinates.y}%`} 
+                                    stroke={unit.status === 'completed' ? '#00c600' : '#333'} 
+                                    strokeWidth="2" 
+                                    strokeDasharray={unit.status === 'completed' ? '0' : '5,5'}
+                                    className="transition-colors duration-1000"
+                                 />
+                             );
+                        })}
+                    </svg>
 
-                {units.map((unit, index) => (
-                    <div key={unit.id} className="relative z-10 pl-2">
-                        <div className="flex items-center gap-6">
-                            {/* Node Icon */}
-                            <button 
-                                disabled={unit.status === 'locked'}
-                                onClick={() => handleNodeClick(unit, unit.nodes?.[0])}
-                                className={`
-                                    w-14 h-14 rounded-2xl flex items-center justify-center border-4 transition-all duration-300 shadow-xl relative
-                                    ${unit.status === 'completed' 
-                                        ? 'bg-lumen-primary border-lumen-primary text-black' 
-                                        : unit.status === 'active'
-                                            ? 'bg-black border-lumen-secondary text-lumen-secondary animate-pulse-slow scale-110'
-                                            : 'bg-black/50 border-gray-700 text-gray-700 cursor-not-allowed'}
-                                `}
-                            >
+                    {/* Nodes */}
+                    {units.map((unit) => (
+                        <div 
+                            key={unit.id}
+                            onClick={() => handleSystemSelect(unit)}
+                            className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 group cursor-pointer`}
+                            style={{ left: `${unit.coordinates?.x || 50}%`, top: `${unit.coordinates?.y || 50}%` }}
+                        >
+                            {/* Pulse Effect for Active */}
+                            {unit.status === 'active' && (
+                                <div className="absolute inset-0 bg-lumen-primary/30 rounded-full animate-ping"></div>
+                            )}
+
+                            {/* Node Circle */}
+                            <div className={`
+                                w-16 h-16 md:w-20 md:h-20 rounded-full flex flex-col items-center justify-center border-4 relative z-10 shadow-xl
+                                ${unit.status === 'completed' 
+                                    ? 'bg-black border-lumen-primary text-lumen-primary shadow-[0_0_20px_rgba(0,198,0,0.4)]' 
+                                    : unit.status === 'active'
+                                        ? 'bg-black border-white text-white shadow-[0_0_20px_rgba(255,255,255,0.4)] hover:scale-110'
+                                        : 'bg-black/50 border-gray-800 text-gray-700 grayscale'}
+                            `}>
                                 {unit.status === 'completed' ? <CheckCircle size={28} /> : 
                                  unit.status === 'locked' ? <Lock size={24} /> : 
-                                 <Star size={24} fill="currentColor" />}
-                            </button>
+                                 <Star size={28} fill="currentColor" />}
+                            </div>
 
-                            {/* Node Info */}
-                            <div className="flex-1">
-                                <h3 className={`text-lg font-bold ${unit.status === 'locked' ? 'text-gray-600' : 'text-white'}`}>
-                                    {unit.title}
-                                </h3>
-                                <p className="text-xs text-gray-500 font-mono uppercase tracking-wide">{unit.category}</p>
-                                
-                                {/* Micro-Nodes (Sub-steps) */}
-                                {unit.status !== 'locked' && unit.nodes && (
-                                    <div className="flex gap-2 mt-3">
-                                        {unit.nodes.map((n, i) => (
-                                            <button 
-                                                key={i}
-                                                onClick={() => handleNodeClick(unit, n)}
-                                                className={`
-                                                    w-8 h-8 rounded-full flex items-center justify-center text-[10px] border transition-colors
-                                                    ${activeNode?.id === n.id ? 'bg-white text-black border-white' : 'bg-black/40 border-white/20 text-gray-400 hover:border-white'}
-                                                `}
-                                            >
-                                                {n.type === 'video' ? <PlayCircle size={14} /> : n.type === 'quiz' ? <Mic size={14} /> : <BookOpen size={14} />}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
+                            {/* Label */}
+                            <div className={`
+                                absolute top-full mt-3 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-1 rounded bg-black/80 backdrop-blur border border-white/10 text-xs font-mono
+                                ${unit.status === 'locked' ? 'text-gray-600' : 'text-white group-hover:text-lumen-primary group-hover:border-lumen-primary'}
+                            `}>
+                                {unit.title}
                             </div>
                         </div>
-                    </div>
-                ))}
+                    ))}
+                </div>
             </div>
-        </div>
+        )}
 
-        {/* RIGHT COLUMN: INTERACTION AREA */}
-        <div className="flex-1 bg-black/40 border border-white/10 rounded-3xl overflow-hidden flex flex-col relative shadow-2xl">
-            {mode === 'path' && (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-gray-500">
-                    <div className="w-24 h-24 rounded-full bg-lumen-dim/20 flex items-center justify-center mb-6 animate-pulse-slow">
-                        <ArrowRight size={48} className="text-lumen-secondary" />
-                    </div>
-                    <h2 className="text-2xl text-white font-light mb-2">Select a Module</h2>
-                    <p className="max-w-md">Begin your path to mastery. Complete micro-units and pass the AI Gauntlet to earn your rank.</p>
-                </div>
-            )}
-
-            {mode === 'content' && activeUnit && (
-                <div className="flex-1 flex flex-col">
-                    <div className="h-64 bg-black relative">
-                         {/* Mock Video Player */}
-                         <div className="absolute inset-0 flex items-center justify-center bg-[url('https://images.unsplash.com/photo-1581092921461-eab62e97a780?q=80&w=2670&auto=format&fit=crop')] bg-cover bg-center opacity-50">
-                             <PlayCircle size={64} className="text-white opacity-80" />
-                         </div>
-                         <div className="absolute top-4 left-4 bg-black/60 backdrop-blur px-3 py-1 rounded text-xs font-mono text-white border border-white/10">
-                            {activeNode?.title}
-                         </div>
-                         <button 
-                            onClick={() => setMode('path')}
-                            className="absolute top-4 right-4 p-2 bg-black/60 rounded-full text-white hover:bg-white/20 transition-colors"
-                         >
-                             <ArrowRight size={20} />
-                         </button>
-                    </div>
-                    <div className="p-8 flex-1 overflow-y-auto">
-                        <h2 className="text-3xl font-light text-white mb-6">{activeUnit.title}</h2>
-                        <div className="prose prose-invert max-w-none">
-                            <p className="text-gray-300 text-lg leading-relaxed">{activeUnit.content}</p>
-                            <div className="mt-8 p-6 bg-lumen-dim/10 rounded-xl border border-lumen-primary/20">
-                                <h4 className="text-lumen-primary font-bold mb-2 flex items-center gap-2"><Bot size={18}/> Quick Insight</h4>
-                                <p className="text-sm text-gray-400">Remember: In industrial contexts, variables aren't just abstract letters; they usually represent physical limits like PSI or Volts.</p>
-                            </div>
-                        </div>
-                        <button 
-                            onClick={() => {
-                                const quizNode = activeUnit.nodes?.find(n => n.type === 'quiz');
-                                if(quizNode) handleNodeClick(activeUnit, quizNode);
-                            }}
-                            className="mt-8 w-full py-4 bg-lumen-primary hover:bg-lumen-highlight text-black font-bold rounded-xl shadow-glow transition-all"
-                        >
-                            Complete & Take Test
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {mode === 'test' && (
-                <div className="flex-1 flex flex-col bg-lumen-surface/80 backdrop-blur-md">
-                     {/* Header */}
-                     <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/20">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-lumen-secondary/20 flex items-center justify-center text-lumen-secondary animate-pulse">
-                                <Bot size={20} />
-                            </div>
+        {/* --- MODE: BRIEFING MODAL --- */}
+        {mode === 'briefing' && activeUnit && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+                <div className="bg-[#0a1410] border border-lumen-primary/30 w-full max-w-2xl rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,198,0,0.1)]">
+                    <div className="h-2 bg-gradient-to-r from-lumen-primary to-lumen-secondary"></div>
+                    <div className="p-8">
+                        <div className="flex justify-between items-start mb-6">
                             <div>
-                                <h3 className="font-bold text-white">The Gauntlet</h3>
-                                <p className="text-xs text-lumen-secondary font-mono">ADAPTIVE EXAMINER ACTIVE</p>
+                                <h3 className="text-lumen-primary font-mono text-xs tracking-widest uppercase mb-1">MISSION BRIEFING</h3>
+                                <h1 className="text-3xl text-white font-light">{activeUnit.title}</h1>
+                            </div>
+                            <button onClick={() => setMode('map')} className="text-gray-500 hover:text-white"><X /></button>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 mb-8">
+                            <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                <p className="text-xs text-gray-400 font-mono mb-1">OBJECTIVE</p>
+                                <p className="text-white text-sm">{activeUnit.content?.substring(0, 100)}...</p>
+                            </div>
+                            <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                <p className="text-xs text-gray-400 font-mono mb-1">REWARDS</p>
+                                <div className="flex items-center gap-2 text-yellow-400 font-bold">
+                                    <Zap size={16} fill="currentColor" /> {activeUnit.xpReward || 500} XP
+                                </div>
+                                <div className="flex items-center gap-2 text-lumen-secondary text-sm mt-1">
+                                    <Shield size={16} /> Access Key
+                                </div>
                             </div>
                         </div>
-                        <button onClick={() => setMode('path')} className="text-gray-400 hover:text-white"><ArrowRight /></button>
-                     </div>
 
-                     {/* Chat Area */}
-                     <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                        {messages.map((msg, i) => (
-                            <div key={i} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'user' ? 'bg-gray-700' : 'bg-lumen-secondary/20 text-lumen-secondary'}`}>
-                                    {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
+                        <div className="flex gap-4">
+                            <button onClick={() => setMode('map')} className="flex-1 py-3 bg-white/5 text-white font-bold rounded-xl hover:bg-white/10 transition-colors">
+                                ABORT
+                            </button>
+                            <button onClick={startMission} className="flex-1 py-3 bg-lumen-primary text-black font-bold rounded-xl shadow-glow hover:scale-105 transition-transform">
+                                ENGAGE SYSTEM
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* --- MODE: CONTENT --- */}
+        {mode === 'content' && activeUnit && (
+            <div className="absolute inset-0 bg-[#050a08] flex flex-col z-20 animate-in slide-in-from-right">
+                <div className="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-black/40">
+                    <h3 className="text-white font-medium">{activeUnit.title} <span className="text-gray-500">/</span> Learning Phase</h3>
+                    <button onClick={() => setMode('map')} className="text-gray-400 hover:text-white flex items-center gap-2 text-sm">
+                        EXIT <X size={16} />
+                    </button>
+                </div>
+                
+                <div className="flex-1 flex overflow-hidden">
+                    {/* Content Area */}
+                    <div className="flex-1 overflow-y-auto p-8 lg:p-12">
+                         <div className="max-w-3xl mx-auto">
+                            {/* Fake Video Player */}
+                            <div className="aspect-video bg-gray-900 rounded-2xl mb-8 relative group overflow-hidden border border-white/10">
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <PlayCircle size={64} className="text-white/50 group-hover:text-lumen-primary transition-colors cursor-pointer" />
                                 </div>
-                                <div className={`max-w-[80%] p-4 rounded-2xl text-sm leading-relaxed ${
-                                    msg.role === 'user' 
-                                    ? 'bg-white/10 text-white rounded-tr-none' 
-                                    : 'bg-black/40 border border-lumen-secondary/20 text-gray-200 rounded-tl-none shadow-glow-cyan'
-                                }`}>
-                                    {msg.text}
-                                </div>
+                                <div className="absolute bottom-4 left-4 bg-black/60 px-2 py-1 rounded text-xs text-white">00:00 / 04:35</div>
                             </div>
-                        ))}
-                        {loading && (
-                             <div className="flex gap-4">
-                                <div className="w-8 h-8 rounded-full bg-lumen-secondary/20 text-lumen-secondary flex items-center justify-center shrink-0">
-                                    <Bot size={14} />
-                                </div>
-                                <div className="bg-black/40 border border-lumen-secondary/20 p-4 rounded-2xl rounded-tl-none">
-                                    <div className="flex gap-1">
-                                        <span className="w-2 h-2 bg-lumen-secondary rounded-full animate-bounce"></span>
-                                        <span className="w-2 h-2 bg-lumen-secondary rounded-full animate-bounce delay-100"></span>
-                                        <span className="w-2 h-2 bg-lumen-secondary rounded-full animate-bounce delay-200"></span>
-                                    </div>
-                                </div>
-                             </div>
-                        )}
-                        <div ref={scrollRef} />
-                     </div>
+                            
+                            <h2 className="text-2xl text-white font-bold mb-4">Core Concepts</h2>
+                            <div className="prose prose-invert prose-lg text-gray-300">
+                                <p>{activeUnit.content}</p>
+                            </div>
 
-                     {/* Input Area */}
+                            <button 
+                                onClick={() => startTest(activeUnit)}
+                                className="mt-12 w-full py-4 bg-lumen-secondary/10 border border-lumen-secondary/50 text-lumen-secondary font-bold rounded-xl hover:bg-lumen-secondary/20 transition-all flex items-center justify-center gap-2"
+                            >
+                                <Terminal size={20} />
+                                LAUNCH GAUNTLET PROTOCOL
+                            </button>
+                         </div>
+                    </div>
+
+                    {/* Right Sidebar Checklist */}
+                    <div className="w-80 border-l border-white/10 bg-black/20 p-6 hidden lg:block">
+                        <h4 className="text-xs font-mono text-gray-500 uppercase mb-4">Module Checklist</h4>
+                        <div className="space-y-2">
+                            {activeUnit.nodes?.map((node, i) => (
+                                <div key={i} className={`flex items-center gap-3 p-3 rounded-lg border ${
+                                    activeNode?.id === node.id ? 'bg-white/10 border-white/20 text-white' : 'border-transparent text-gray-500'
+                                }`}>
+                                    <div className={`w-2 h-2 rounded-full ${node.completed ? 'bg-lumen-primary' : 'bg-gray-700'}`}></div>
+                                    <span className="text-sm">{node.title}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* --- MODE: TEST (THE GAUNTLET) --- */}
+        {mode === 'test' && (
+            <div className="absolute inset-0 z-30 bg-black flex flex-col font-mono text-green-500">
+                {/* CRT Effect Overlay */}
+                <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 pointer-events-none bg-[length:100%_2px,3px_100%]"></div>
+                
+                {/* Header */}
+                <div className="p-4 border-b border-green-500/30 flex justify-between items-center bg-green-900/10 relative z-20">
+                     <div className="flex items-center gap-2 animate-pulse">
+                         <Terminal size={18} />
+                         <span>GAUNTLET_PROTOCOL_V4.exe</span>
+                     </div>
+                     <button onClick={() => setMode('map')} className="hover:text-white transition-colors"><X size={18} /></button>
+                </div>
+
+                {/* Chat Stream */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 relative z-20" ref={scrollRef}>
+                    {messages.map((msg, i) => (
+                        <div key={i} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            {msg.role === 'model' && <Bot className="shrink-0 mt-1" size={20} />}
+                            <div className={`max-w-[80%] p-4 border ${
+                                msg.role === 'user' 
+                                ? 'border-white/30 text-white bg-white/5 rounded-l-xl rounded-br-xl' 
+                                : 'border-green-500/30 text-green-400 bg-green-900/10 rounded-r-xl rounded-bl-xl shadow-[0_0_10px_rgba(0,198,0,0.1)]'
+                            }`}>
+                                <p className="whitespace-pre-wrap">{msg.text}</p>
+                            </div>
+                            {msg.role === 'user' && <User className="shrink-0 mt-1" size={20} />}
+                        </div>
+                    ))}
+                    {loading && (
+                        <div className="flex gap-2 text-green-500/50 animate-pulse ml-9">
+                            <span>ANALYZING INPUT</span>
+                            <span>...</span>
+                        </div>
+                    )}
+                    <div ref={scrollRef} />
+                </div>
+
+                {/* Input */}
+                <div className="p-6 border-t border-green-500/30 bg-black relative z-20">
                      {testPassed ? (
-                         <div className="p-6 bg-lumen-primary/10 border-t border-lumen-primary/30 text-center">
-                             <h3 className="text-xl font-bold text-lumen-primary mb-2">Assessment Passed!</h3>
-                             <button onClick={() => setMode('path')} className="px-6 py-2 bg-lumen-primary text-black font-bold rounded-lg shadow-glow">
-                                 Return to Path
+                         <button 
+                            onClick={() => setMode('map')} 
+                            className="w-full py-4 bg-green-500 text-black font-bold uppercase tracking-widest hover:bg-green-400 transition-colors shadow-glow"
+                         >
+                             Return to System Map
+                         </button>
+                     ) : (
+                         <div className="flex gap-4">
+                             <input 
+                                type="text" 
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                                placeholder="ENTER RESPONSE..."
+                                className="flex-1 bg-transparent border-b-2 border-green-500/50 text-green-400 placeholder-green-500/30 focus:outline-none focus:border-green-500 py-2"
+                                autoFocus
+                             />
+                             <button onClick={handleSendMessage} disabled={!input.trim()} className="text-green-500 hover:text-white disabled:opacity-50">
+                                 <Send size={24} />
                              </button>
                          </div>
-                     ) : (
-                        <div className="p-4 bg-black/60 border-t border-white/10">
-                            <div className="relative flex items-center gap-2">
-                                <button 
-                                    onClick={handleVoiceInput}
-                                    className="p-3 rounded-full bg-white/5 hover:bg-white/10 text-lumen-secondary transition-colors"
-                                    title="Voice Input"
-                                >
-                                    <Mic size={20} />
-                                </button>
-                                <input 
-                                    type="text" 
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                                    placeholder="Answer the examiner..."
-                                    className="flex-1 bg-black/40 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:border-lumen-secondary focus:ring-1 focus:ring-lumen-secondary outline-none font-mono text-sm"
-                                />
-                                <button 
-                                    onClick={handleSendMessage}
-                                    disabled={!input.trim() || loading}
-                                    className="p-3 bg-lumen-secondary text-black rounded-xl hover:bg-cyan-300 disabled:opacity-50 transition-colors"
-                                >
-                                    <Send size={18} />
-                                </button>
-                            </div>
-                            <div className="text-center mt-2">
-                                <span className="text-[10px] text-gray-600 font-mono">VOICE INPUT ENABLED • ADAPTIVE GRADING ON</span>
-                            </div>
-                        </div>
                      )}
                 </div>
-            )}
-        </div>
+            </div>
+        )}
     </div>
   );
 };
