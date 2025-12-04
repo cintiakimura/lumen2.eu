@@ -1,4 +1,3 @@
-
 import { 
     collection, 
     getDocs, 
@@ -6,7 +5,6 @@ import {
     query, 
     where, 
     doc, 
-    updateDoc,
     setDoc
 } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
@@ -23,7 +21,7 @@ export const getClients = async (): Promise<Client[]> => {
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
     } catch (e) {
         console.error("Error fetching clients:", e);
-        return [];
+        return MOCK_CLIENTS;
     }
 };
 
