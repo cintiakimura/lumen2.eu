@@ -130,7 +130,10 @@ const Admin = () => {
                 email: `${newItemName.toLowerCase().split(' ')[0]}@lumen.demo`,
                 role: newItemRole,
                 clientId: newItemClientId || (selectedClient?.id || clients[0]?.id),
-                status: 'Active'
+                status: 'Active',
+                xp: 0,
+                rank: 'Rookie',
+                badges: []
             };
             success = await createUser(newUser);
         } else if (activeTab === 'courses') {

@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI } from "@google/genai";
 
 let client: GoogleGenAI | null = null;
@@ -95,3 +96,45 @@ export const gradeSubmissionAI = async (task: string, response: string): Promise
         };
     }
 };
+
+// --- ADAPTIVE TUTOR LOGIC ---
+export const runAdaptiveTutor = async (
+    history: { role: 'user' | 'model'; text: string }[], 
+    userResponse: string, 
+    contextMaterial: string
+): Promise<{ text: string, passed: boolean }> => {
+    
+    if (!client) {
+        return { text: "Demo Mode: Excellent answer! You have demonstrated mastery of the subject.", passed: true };
+    }
+
+    try {
+        const chat = client.chats.create({
+            model: 'gemini-2.5-flash',
+            config: {
+                systemInstruction: `
+                    You are an adaptive Examiner for an industrial training platform.
+                    Your Goal: Verify the user understands the MATERIAL provided below.
+                    
+                    MATERIAL: "${contextMaterial}"
+
+                    Rules:
+                    1. If the user's answer is WRONG or INCOMPLETE: Explain the specific concept they missed simply and clearly. Then, ASK A NEW QUESTION to verify they now understand. Do NOT pass them.
+                    2. If the user's answer is CORRECT: Congratulate them briefly and confirm they have passed the module.
+                    3. Output JSON ONLY: { "text": "Your response to the user", "passed": boolean }
+                `,
+                responseMimeType: "application/json"
+            },
+            history: history.map(h => ({ role: h.role, parts: [{ text: h.text }] }))
+        });
+
+        const result = await chat.sendMessage({ message: userResponse });
+        const text = result.text || "{}";
+        const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(cleanedText);
+
+    } catch (e) {
+        console.error("Tutor Error:", e);
+        return { text: "System connection error. Please try again.", passed: false };
+    }
+}

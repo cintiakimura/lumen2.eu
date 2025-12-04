@@ -1,4 +1,5 @@
 
+
 import { 
     collection, 
     getDocs, 
@@ -7,12 +8,14 @@ import {
     where, 
     doc, 
     setDoc,
-    limit
+    updateDoc,
+    limit,
+    getDoc
 } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL, listAll } from "firebase/storage";
 import { db, storage } from "../firebaseConfig";
-import { Client, User, Unit, Submission, UserRole } from "../types";
-import { MOCK_CLIENTS, MOCK_USERS, MOCK_UNITS, VITE_DEMO_MODE } from "../constants";
+import { Client, User, Unit, Submission, UserRole, Rank } from "../types";
+import { MOCK_CLIENTS, MOCK_USERS, MOCK_UNITS, VITE_DEMO_MODE, RANKS } from "../constants";
 
 // --- CONNECTION CHECKS ---
 export const checkDBConnection = async (): Promise<boolean> => {
@@ -131,7 +134,10 @@ export const registerUser = async (name: string, email: string, role: UserRole, 
         email,
         role,
         clientId: clientId || 'GLOBAL', // Default to global if no code provided
-        status: 'Active'
+        status: 'Active',
+        xp: 0,
+        rank: 'Rookie',
+        badges: []
     };
 
     // 3. Save to DB
@@ -143,6 +149,51 @@ export const registerUser = async (name: string, email: string, role: UserRole, 
     }
 
     return newUser;
+};
+
+export const updateUserXP = async (userId: string, amount: number): Promise<{ newXP: number, newRank: Rank | null }> => {
+    if (VITE_DEMO_MODE || !db) {
+        const user = MOCK_USERS.find(u => u.id === userId);
+        if (user) {
+            user.xp += amount;
+            // Check Rank
+            const nextRank = RANKS.slice().reverse().find(r => user.xp >= r.minXP);
+            let rankUp = null;
+            if (nextRank && nextRank.name !== user.rank) {
+                user.rank = nextRank.name;
+                rankUp = nextRank.name;
+            }
+            return { newXP: user.xp, newRank: rankUp };
+        }
+        return { newXP: 0, newRank: null };
+    }
+
+    try {
+        const userRef = doc(db, "users", userId);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+            const data = userSnap.data() as User;
+            const newXP = (data.xp || 0) + amount;
+            
+            const nextRank = RANKS.slice().reverse().find(r => newXP >= r.minXP);
+            let newRankName = data.rank;
+            let rankUp = null;
+
+            if (nextRank && nextRank.name !== data.rank) {
+                newRankName = nextRank.name;
+                rankUp = nextRank.name;
+            }
+
+            await updateDoc(userRef, {
+                xp: newXP,
+                rank: newRankName
+            });
+            return { newXP, newRank: rankUp };
+        }
+    } catch(e) {
+        console.error("XP Update Error", e);
+    }
+    return { newXP: 0, newRank: null };
 };
 
 // --- COURSES ---

@@ -46,6 +46,9 @@ export interface Unit {
   video_id?: string;
   start_sec?: number;
   clientId?: string; // If null, it is a Global Course. If set, it is private to that client.
+  // Micro-learning content
+  content?: string; 
+  nodes?: { id: string; title: string; type: 'video' | 'read' | 'quiz'; completed: boolean }[];
 }
 
 export interface ChatMessage {
@@ -57,6 +60,16 @@ export interface ChatMessage {
 
 // Admin Types
 export type UserRole = 'Super Admin' | 'Teacher' | 'Student';
+
+export type Rank = 'Rookie' | 'Technician' | 'Specialist' | 'Master' | 'Wizard';
+
+export interface Badge {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  unlockedAt?: number;
+}
 
 export interface Client {
   id: string;
@@ -75,4 +88,8 @@ export interface User {
   role: UserRole;
   clientId: string; // Links user to a specific client organization
   status: 'Active' | 'Inactive' | 'Advanced';
+  // Gamification
+  xp: number;
+  rank: Rank;
+  badges: Badge[];
 }

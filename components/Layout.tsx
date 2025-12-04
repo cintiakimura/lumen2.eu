@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, PropsWithChildren } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
@@ -18,11 +19,14 @@ import {
   Bell,
   Wifi,
   WifiOff,
-  LogOut
+  LogOut,
+  Zap,
+  Award
 } from 'lucide-react';
 import { requestNotificationPermission, onMessageListener } from '../services/notificationService';
 import { checkDBConnection } from '../services/db';
 import { useAuth } from '../contexts/AuthContext';
+import { RANKS } from '../constants';
 import { Toaster, toast } from 'react-hot-toast';
 
 interface SidebarItemProps {
@@ -146,6 +150,10 @@ export const Layout = ({ children }: PropsWithChildren) => {
       }
   };
 
+  const currentRank = RANKS.find(r => r.name === user?.rank) || RANKS[0];
+  const nextRank = RANKS.find(r => r.minXP > (user?.xp || 0)) || RANKS[RANKS.length - 1];
+  const progressToNext = nextRank === currentRank ? 100 : ((user?.xp || 0) - currentRank.minXP) / (nextRank.minXP - currentRank.minXP) * 100;
+
   // Role-based Navigation
   const allNavItems = [
     { to: '/', icon: LayoutDashboard, label: 'DASHBOARD', roles: ['Student', 'Teacher', 'Super Admin'] },
@@ -200,7 +208,33 @@ export const Layout = ({ children }: PropsWithChildren) => {
           ))}
         </nav>
 
+        {/* Gamification / Profile Area */}
         <div className="p-4 border-t border-white/5 bg-black/20 relative z-10">
+          <div className="bg-white/5 rounded-xl p-3 mb-3 border border-white/5">
+             <div className="flex items-center justify-between mb-2">
+                 <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-lumen-dim/20 flex items-center justify-center text-lumen-primary">
+                        <Award size={16} />
+                    </div>
+                    {!collapsed && (
+                        <div>
+                            <p className={`text-xs font-bold uppercase ${currentRank.color}`}>{user?.rank || 'ROOKIE'}</p>
+                            <p className="text-[10px] text-gray-500 font-mono">{user?.xp || 0} XP</p>
+                        </div>
+                    )}
+                 </div>
+                 {!collapsed && <Zap size={14} className="text-yellow-500 fill-current" />}
+             </div>
+             {!collapsed && (
+                 <div className="w-full h-1.5 bg-black/50 rounded-full overflow-hidden">
+                     <div 
+                        className="h-full bg-gradient-to-r from-lumen-primary to-lumen-secondary transition-all duration-1000"
+                        style={{ width: `${progressToNext}%` }}
+                     ></div>
+                 </div>
+             )}
+          </div>
+
           <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''} p-2 rounded-xl transition-colors group`}>
             <div className="relative">
               <div className="w-9 h-9 rounded-lg bg-gradient-to-tr from-lumen-primary to-lumen-secondary flex items-center justify-center text-xs font-bold text-black shadow-glow">
