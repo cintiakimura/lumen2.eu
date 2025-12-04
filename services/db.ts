@@ -72,26 +72,30 @@ export const createClient = async (clientData: Client): Promise<boolean> => {
 
 // --- USERS ---
 export const getUsers = async (clientId?: string): Promise<User[]> => {
-    if (VITE_DEMO_MODE || !db) {
-        if (clientId) return MOCK_USERS.filter(u => u.clientId === clientId);
-        return MOCK_USERS;
+    // Always merge Mock Users in case registration fell back to local
+    let results = [...MOCK_USERS];
+
+    if (!VITE_DEMO_MODE && db) {
+        try {
+            const ref = collection(db, "users");
+            const q = clientId ? query(ref, where("clientId", "==", clientId)) : ref;
+            
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                const dbUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+                // Deduping: Prefer DB users, but keep Mock users that aren't in DB (local session users)
+                const dbIds = new Set(dbUsers.map(u => u.id));
+                results = [...dbUsers, ...results.filter(u => !dbIds.has(u.id))];
+            }
+        } catch (e) {
+            console.warn("DB Error (getUsers):", e);
+        }
     }
 
-    try {
-        const ref = collection(db, "users");
-        const q = clientId ? query(ref, where("clientId", "==", clientId)) : ref;
-        
-        const snapshot = await getDocs(q);
-        if (snapshot.empty) {
-             if (clientId) return MOCK_USERS.filter(u => u.clientId === clientId);
-             return MOCK_USERS;
-        }
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-    } catch (e) {
-        console.warn("DB Error (getUsers):", e);
-        if (clientId) return MOCK_USERS.filter(u => u.clientId === clientId);
-        return MOCK_USERS;
+    if (clientId) {
+        return results.filter(u => u.clientId === clientId);
     }
+    return results;
 };
 
 export const createUser = async (userData: User): Promise<boolean> => {
@@ -100,13 +104,13 @@ export const createUser = async (userData: User): Promise<boolean> => {
         await setDoc(doc(db, "users", userData.id), userData);
         return true;
     } catch (e) {
-        console.warn("Failed to create user, using fallback.", e);
+        console.warn("Failed to create user (Firebase), falling back to local session.", e);
         return false;
     }
 };
 
 export const registerUser = async (name: string, email: string, role: UserRole, clientId: string): Promise<User> => {
-    // 1. Efficiently check if user exists (Query instead of Download All)
+    // 1. Efficiently check if user exists
     if (!VITE_DEMO_MODE && db) {
         try {
             const usersRef = collection(db, "users");
@@ -116,15 +120,14 @@ export const registerUser = async (name: string, email: string, role: UserRole, 
                 throw new Error("User identity already registered.");
             }
         } catch (e: any) {
-            // If it's the duplicate user error, rethrow. Otherwise, log and potentially fallback.
             if (e.message === "User identity already registered.") throw e;
             console.warn("DB Query Error during registration check, proceeding cautiously:", e);
         }
-    } else {
-        // Fallback for Mock Mode
-        const allUsers = await getUsers();
-        const existing = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-        if (existing) throw new Error("User identity already registered.");
+    }
+
+    // Check local mock users too (for hybrid state)
+    if (MOCK_USERS.find(u => u.email.toLowerCase() === email.toLowerCase())) {
+        throw new Error("User identity already registered (Local).");
     }
 
     // 2. Create new User object
@@ -133,18 +136,19 @@ export const registerUser = async (name: string, email: string, role: UserRole, 
         name,
         email,
         role,
-        clientId: clientId || 'GLOBAL', // Default to global if no code provided
+        clientId: clientId || 'GLOBAL',
         status: 'Active',
         xp: 0,
         rank: 'Rookie',
         badges: []
     };
 
-    // 3. Save to DB
-    await createUser(newUser);
+    // 3. Attempt Save to DB
+    const cloudSuccess = await createUser(newUser);
     
-    // 4. Update local mock data immediately for smooth UX if in offline/demo mode
-    if (VITE_DEMO_MODE || !db) {
+    // 4. CRITICAL FIX: If Cloud fails (or doesn't exist), UPDATE MOCK DATA so login works this session
+    if (!cloudSuccess || VITE_DEMO_MODE || !db) {
+        console.log("Saving user to local session cache.");
         MOCK_USERS.push(newUser);
     }
 
@@ -152,66 +156,64 @@ export const registerUser = async (name: string, email: string, role: UserRole, 
 };
 
 export const updateUserXP = async (userId: string, amount: number): Promise<{ newXP: number, newRank: Rank | null }> => {
-    if (VITE_DEMO_MODE || !db) {
-        const user = MOCK_USERS.find(u => u.id === userId);
-        if (user) {
-            user.xp += amount;
-            // Check Rank
-            const nextRank = RANKS.slice().reverse().find(r => user.xp >= r.minXP);
-            let rankUp = null;
-            if (nextRank && nextRank.name !== user.rank) {
-                user.rank = nextRank.name;
-                rankUp = nextRank.name;
-            }
-            return { newXP: user.xp, newRank: rankUp };
+    // Helper to calc rank
+    const calcRank = (xp: number, currentRank: Rank) => {
+        const nextRank = RANKS.slice().reverse().find(r => xp >= r.minXP);
+        if (nextRank && nextRank.name !== currentRank) {
+            return nextRank.name;
         }
-        return { newXP: 0, newRank: null };
+        return null;
+    };
+
+    // 1. Update Cloud
+    if (!VITE_DEMO_MODE && db) {
+        try {
+            const userRef = doc(db, "users", userId);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+                const data = userSnap.data() as User;
+                const newXP = (data.xp || 0) + amount;
+                const newRankName = calcRank(newXP, data.rank);
+
+                await updateDoc(userRef, {
+                    xp: newXP,
+                    rank: newRankName || data.rank
+                });
+                return { newXP, newRank: newRankName };
+            }
+        } catch(e) {
+            console.error("XP Cloud Update Error", e);
+        }
     }
 
-    try {
-        const userRef = doc(db, "users", userId);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-            const data = userSnap.data() as User;
-            const newXP = (data.xp || 0) + amount;
-            
-            const nextRank = RANKS.slice().reverse().find(r => newXP >= r.minXP);
-            let newRankName = data.rank;
-            let rankUp = null;
-
-            if (nextRank && nextRank.name !== data.rank) {
-                newRankName = nextRank.name;
-                rankUp = nextRank.name;
-            }
-
-            await updateDoc(userRef, {
-                xp: newXP,
-                rank: newRankName
-            });
-            return { newXP, newRank: rankUp };
-        }
-    } catch(e) {
-        console.error("XP Update Error", e);
+    // 2. Update Local Mock (Always do this for UI responsiveness)
+    const user = MOCK_USERS.find(u => u.id === userId);
+    if (user) {
+        user.xp = (user.xp || 0) + amount;
+        const newRank = calcRank(user.xp, user.rank);
+        if (newRank) user.rank = newRank;
+        return { newXP: user.xp, newRank };
     }
+
     return { newXP: 0, newRank: null };
 };
 
 // --- COURSES ---
 export const getCourses = async (clientId?: string): Promise<Unit[]> => {
-    if (VITE_DEMO_MODE || !db) {
-        return MOCK_UNITS.filter(u => !u.clientId || u.clientId === clientId);
+    // Similar hybrid approach: Cloud first, fall back to Mock
+    if (!VITE_DEMO_MODE && db) {
+        try {
+            const snapshot = await getDocs(collection(db, "courses"));
+            if (!snapshot.empty) {
+                const allCourses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Unit));
+                // Note: We don't merge courses usually, as content should be authoritative
+                return allCourses.filter(u => !u.clientId || u.clientId === clientId);
+            }
+        } catch (e) {
+            console.warn("DB Error (getCourses):", e);
+        }
     }
-
-    try {
-        const snapshot = await getDocs(collection(db, "courses"));
-        if (snapshot.empty) return MOCK_UNITS.filter(u => !u.clientId || u.clientId === clientId);
-
-        const allCourses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Unit));
-        return allCourses.filter(u => !u.clientId || u.clientId === clientId);
-    } catch (e) {
-        console.warn("DB Error (getCourses):", e);
-        return MOCK_UNITS.filter(u => !u.clientId || u.clientId === clientId);
-    }
+    return MOCK_UNITS.filter(u => !u.clientId || u.clientId === clientId);
 };
 
 export const createCourse = async (courseData: Unit): Promise<boolean> => {
@@ -271,7 +273,6 @@ export const createTask = async (task: Task): Promise<boolean> => {
 // --- SUBMISSIONS ---
 export const saveSubmission = async (submission: Submission): Promise<boolean> => {
     if (VITE_DEMO_MODE || !db) {
-        console.log("Mock Save Submission", submission);
         return true;
     }
     try {

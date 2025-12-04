@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { AlertTriangle, CheckCircle, Activity, Box, Shield, Zap, Target, Award, Users, Server, Clock } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Activity, Box, Shield, Zap, Target, Award, Users, Server, Clock, Play, Map, ChevronRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { RANKS } from '../constants';
@@ -16,127 +16,145 @@ const data = [
   { time: 'Fri', load: 20, performance: 90 },
 ];
 
-// --- 1. STUDENT VIEW ---
+// --- 1. STUDENT VIEW (GAMIFIED) ---
 const StudentDashboard = ({ user }: { user: any }) => {
     const navigate = useNavigate();
     const currentRank = RANKS.find(r => r.name === user.rank) || RANKS[0];
     const nextRank = RANKS.find(r => r.minXP > user.xp) || RANKS[RANKS.length - 1];
     const xpNeeded = nextRank.minXP - user.xp;
+    const progressPercent = nextRank === currentRank ? 100 : ((user.xp || 0) - currentRank.minXP) / (nextRank.minXP - currentRank.minXP) * 100;
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Welcome Header */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-6 bg-gradient-to-r from-lumen-dim/40 to-black p-8 rounded-3xl border border-white/5 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-10 opacity-10">
-                    <Target size={200} className="text-lumen-primary" />
-                </div>
+        <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+            {/* Hero Section */}
+            <div className="relative overflow-hidden rounded-3xl border border-lumen-primary/30 bg-[#0a1410] min-h-[300px] flex flex-col md:flex-row">
+                {/* Background Grid */}
+                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
+                <div className="absolute right-0 top-0 w-2/3 h-full bg-gradient-to-l from-lumen-primary/10 to-transparent"></div>
                 
-                <div className="relative z-10 text-center md:text-left">
-                    <h1 className="text-4xl font-light text-white mb-2">
-                        Welcome back, <span className="font-bold text-lumen-primary">{user.name.split(',')[1] || user.name.split(' ')[0]}</span>.
-                    </h1>
-                    <p className="text-lumen-secondary font-mono tracking-widest text-sm">OPERATOR STATUS: ACTIVE • {user.clientId}</p>
+                {/* Left Content */}
+                <div className="relative z-10 p-8 md:p-12 flex flex-col justify-center flex-1">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-lumen-primary/10 border border-lumen-primary/30 text-lumen-primary text-xs font-mono mb-4 w-fit">
+                        <div className="w-2 h-2 rounded-full bg-lumen-primary animate-pulse"></div>
+                        SYSTEM ONLINE // READY
+                    </div>
                     
-                    <div className="flex flex-wrap gap-4 mt-6 justify-center md:justify-start">
+                    <h1 className="text-4xl md:text-6xl font-black text-white mb-2 tracking-tight">
+                        WAKE UP, <span className="text-transparent bg-clip-text bg-gradient-to-r from-lumen-primary to-lumen-secondary">{user.name.split(' ')[0].toUpperCase()}</span>.
+                    </h1>
+                    <p className="text-gray-400 text-lg md:text-xl max-w-xl mb-8">
+                        Your next mission awaits. The fleet needs its best technicians.
+                    </p>
+
+                    <div className="flex flex-wrap gap-4">
                         <button 
                             onClick={() => navigate('/learn')}
-                            className="px-8 py-3 bg-lumen-primary text-black font-bold rounded-xl shadow-glow hover:scale-105 transition-transform flex items-center gap-2"
+                            className="px-8 py-4 bg-lumen-primary hover:bg-lumen-highlight text-black font-bold text-lg rounded-xl shadow-[0_0_20px_rgba(0,198,0,0.4)] hover:shadow-[0_0_30px_rgba(0,198,0,0.6)] hover:scale-105 transition-all flex items-center gap-3 group"
                         >
-                            <Zap size={20} fill="currentColor" />
-                            RESUME MISSION
-                        </button>
-                        <button 
-                             onClick={() => navigate('/progress')}
-                             className="px-8 py-3 bg-white/5 border border-white/10 text-white font-bold rounded-xl hover:bg-white/10 transition-colors flex items-center gap-2"
-                        >
-                            <Award size={20} />
-                            VIEW BADGES
+                            <Play size={24} fill="currentColor" />
+                            ENTER SIMULATION
+                            <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
                         </button>
                     </div>
                 </div>
 
-                {/* Rank Card */}
-                <div className="relative z-10 bg-black/40 backdrop-blur-md p-6 rounded-2xl border border-white/10 w-full md:w-80">
-                    <div className="flex justify-between items-start mb-4">
-                        <div>
-                            <p className="text-xs text-gray-400 font-mono uppercase">Current Rank</p>
-                            <h3 className={`text-2xl font-bold ${currentRank.color}`}>{user.rank.toUpperCase()}</h3>
-                        </div>
-                        <div className="text-4xl">{currentRank.image}</div>
-                    </div>
-                    <div className="space-y-2">
-                         <div className="flex justify-between text-xs font-mono">
-                             <span className="text-white">{user.xp} XP</span>
-                             <span className="text-gray-500">NEXT: {nextRank.minXP} XP</span>
+                {/* Right Stat Block */}
+                <div className="relative z-10 p-8 md:border-l border-white/10 flex flex-col justify-center w-full md:w-80 bg-black/20 backdrop-blur-sm">
+                     <div className="text-center mb-6">
+                         <div className="text-6xl mb-2 drop-shadow-glow">{currentRank.image}</div>
+                         <h2 className={`text-2xl font-black uppercase tracking-widest ${currentRank.color}`}>{user.rank}</h2>
+                         <p className="text-xs text-gray-500 font-mono">CLEARANCE LEVEL {RANKS.indexOf(currentRank) + 1}</p>
+                     </div>
+                     
+                     <div className="space-y-1">
+                         <div className="flex justify-between text-xs font-bold text-gray-400">
+                             <span>EXP</span>
+                             <span>{Math.floor(progressPercent)}%</span>
                          </div>
-                         <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                         <div className="h-3 bg-gray-800 rounded-full overflow-hidden border border-white/5">
                              <div 
-                                className="h-full bg-lumen-primary shadow-[0_0_10px_#00c600]" 
-                                style={{ width: `${(user.xp / nextRank.minXP) * 100}%` }}
+                                className="h-full bg-gradient-to-r from-lumen-primary to-lumen-secondary shadow-[0_0_10px_#00c600]" 
+                                style={{ width: `${progressPercent}%` }}
                              ></div>
                          </div>
-                         <p className="text-[10px] text-lumen-secondary text-right mt-1">
-                             {xpNeeded <= 0 ? 'MAX RANK ACHIEVED' : `${xpNeeded} XP TO PROMOTION`}
+                         <p className="text-[10px] text-center text-gray-500 mt-2 font-mono">
+                             {xpNeeded > 0 ? `${xpNeeded} XP UNTIL PROMOTION` : 'MAX LEVEL'}
                          </p>
-                    </div>
+                     </div>
                 </div>
             </div>
 
-            {/* Stats Grid */}
+            {/* Missions Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="p-6 bg-lumen-surface/60 border border-white/5 rounded-2xl flex items-center gap-4 hover:border-lumen-primary/30 transition-colors">
-                    <div className="p-4 bg-lumen-primary/10 rounded-full text-lumen-primary">
-                        <CheckCircle size={24} />
-                    </div>
-                    <div>
-                        <h4 className="text-2xl font-bold text-white">12</h4>
-                        <p className="text-xs text-gray-500 font-mono uppercase">Missions Complete</p>
-                    </div>
-                </div>
-                <div className="p-6 bg-lumen-surface/60 border border-white/5 rounded-2xl flex items-center gap-4 hover:border-lumen-secondary/30 transition-colors">
-                    <div className="p-4 bg-lumen-secondary/10 rounded-full text-lumen-secondary">
-                        <Clock size={24} />
-                    </div>
-                    <div>
-                        <h4 className="text-2xl font-bold text-white">4.5h</h4>
-                        <p className="text-xs text-gray-500 font-mono uppercase">Training Time</p>
-                    </div>
-                </div>
-                <div className="p-6 bg-lumen-surface/60 border border-white/5 rounded-2xl flex items-center gap-4 hover:border-yellow-400/30 transition-colors">
-                    <div className="p-4 bg-yellow-400/10 rounded-full text-yellow-400">
-                        <Zap size={24} />
-                    </div>
-                    <div>
-                        <h4 className="text-2xl font-bold text-white">5 Day</h4>
-                        <p className="text-xs text-gray-500 font-mono uppercase">Current Streak</p>
+                
+                {/* Daily Challenge */}
+                <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-black/40 hover:border-lumen-secondary/50 transition-all cursor-pointer">
+                    <div className="absolute inset-0 bg-lumen-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="p-3 bg-lumen-secondary/10 text-lumen-secondary rounded-lg">
+                                <Target size={24} />
+                            </div>
+                            <span className="px-2 py-1 bg-lumen-secondary/10 border border-lumen-secondary/30 rounded text-[10px] text-lumen-secondary font-bold uppercase">Daily</span>
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-1">Precision Calibrator</h3>
+                        <p className="text-sm text-gray-400 mb-4">Complete 3 Physics modules with &gt;90% accuracy.</p>
+                        <div className="flex items-center gap-2 text-xs font-mono text-gray-500">
+                            <div className="h-1.5 w-24 bg-gray-700 rounded-full overflow-hidden">
+                                <div className="h-full bg-lumen-secondary w-1/3"></div>
+                            </div>
+                            1/3 COMPLETE
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Daily Challenge */}
-            <div className="bg-gradient-to-br from-gray-900 to-black border border-lumen-primary/30 rounded-2xl p-6 relative overflow-hidden group">
-                 <div className="absolute inset-0 bg-lumen-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                 <div className="flex justify-between items-center relative z-10">
-                     <div className="flex gap-4 items-center">
-                         <div className="p-3 bg-lumen-primary text-black rounded-lg font-bold shadow-glow">
-                             <Target size={24} />
-                         </div>
-                         <div>
-                             <h3 className="text-white font-bold text-lg">Daily Challenge: Precision Engineer</h3>
-                             <p className="text-gray-400 text-sm">Score 100% on any Physics Module today.</p>
-                         </div>
-                     </div>
-                     <div className="text-right">
-                         <span className="block text-2xl font-bold text-lumen-primary">+200 XP</span>
-                         <span className="text-xs text-gray-500 font-mono">REWARD</span>
-                     </div>
-                 </div>
+                {/* Streak */}
+                <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-black/40 hover:border-yellow-500/50 transition-all cursor-pointer">
+                    <div className="absolute inset-0 bg-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="p-3 bg-yellow-500/10 text-yellow-500 rounded-lg">
+                                <Zap size={24} fill="currentColor" />
+                            </div>
+                            <span className="px-2 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded text-[10px] text-yellow-500 font-bold uppercase">Streak</span>
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-1">5 Day Streak</h3>
+                        <p className="text-sm text-gray-400 mb-4">You're on fire! Login tomorrow to keep it going.</p>
+                        <div className="flex gap-1">
+                             {[1,2,3,4,5].map(d => (
+                                 <div key={d} className="w-2 h-8 rounded-sm bg-yellow-500 shadow-[0_0_5px_rgba(234,179,8,0.5)]"></div>
+                             ))}
+                             {[6,7].map(d => (
+                                 <div key={d} className="w-2 h-8 rounded-sm bg-gray-800"></div>
+                             ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Map Shortcut */}
+                <div onClick={() => navigate('/learn')} className="group relative overflow-hidden rounded-2xl border border-white/10 bg-black/40 hover:border-lumen-primary/50 transition-all cursor-pointer">
+                    <div className="absolute inset-0 bg-lumen-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="p-3 bg-lumen-primary/10 text-lumen-primary rounded-lg">
+                                <Map size={24} />
+                            </div>
+                            <span className="px-2 py-1 bg-lumen-primary/10 border border-lumen-primary/30 rounded text-[10px] text-lumen-primary font-bold uppercase">Resume</span>
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-1">Sector 4: Mechanics</h3>
+                        <p className="text-sm text-gray-400 mb-4">Hydraulics Mastery is 45% complete.</p>
+                        <div className="text-lumen-primary text-sm font-bold flex items-center gap-1 group-hover:translate-x-2 transition-transform">
+                            JUMP TO SECTOR <ChevronRight size={16} />
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     );
 }
 
-// --- 2. TEACHER VIEW ---
+// --- 2. TEACHER VIEW (CLEAN & DATA FOCUSED) ---
 const TeacherDashboard = ({ user }: { user: any }) => (
     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
         <div className="flex justify-between items-center bg-lumen-surface/80 p-6 rounded-2xl border border-white/10">
@@ -186,7 +204,7 @@ const TeacherDashboard = ({ user }: { user: any }) => (
     </div>
 );
 
-// --- 3. ADMIN VIEW ---
+// --- 3. ADMIN VIEW (SYSTEM FOCUSED) ---
 const AdminDashboard = () => (
     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
         <div className="bg-purple-900/20 border border-purple-500/30 p-8 rounded-3xl relative overflow-hidden">
@@ -241,7 +259,6 @@ const Dashboard = () => {
   // Auto-redirect Super Admins
   useEffect(() => {
       if (user?.role === 'Super Admin') {
-          // Optional: Keep them on dashboard if they want, but traditionally admin goes to admin panel
           // navigate('/admin'); 
       }
   }, [user, navigate]);
