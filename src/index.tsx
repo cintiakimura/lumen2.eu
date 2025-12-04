@@ -1,5 +1,6 @@
-import React from 'react'; import { createRoot } from 'react-dom/client'; import App from './App'; import './styles.css'; // optional
+import React from 'react'; 
+import { createRoot } from 'react-dom/client'; 
+import App from './App'; 
+import './styles.css'; // optional
 
 createRoot(document.getElementById('root')!).render( <React.StrictMode> <App /> </React.StrictMode> );
-
-src/App.tsx import React from 'react'; export default function App() { return <div>Hello Lumen Academy</div>; }
