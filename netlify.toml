@@ -1,7 +1,8 @@
-[[redirects]]
+[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-  [build]
-  command = "npm run build"  # Or "yarn build", etc.
-  publish = "dist"  # Adjust to your build output folder, e.g., "build" for Create React App
+
+[build]
+  command = "npm run build"
+  publish = "dist"          # change to "build" if using Create-React-App instead of Vite
