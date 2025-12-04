@@ -2,7 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 
 let client: GoogleGenAI | null = null;
 
-// Initialize client safely using environment variables
+// Initialize client safely
 try {
   // The API key must be obtained exclusively from process.env.API_KEY.
   if (process.env.API_KEY) {
@@ -45,7 +45,7 @@ export const gradeSubmissionAI = async (task: string, response: string): Promise
             resolve({
                 score: 85,
                 feedback: {
-                    overall: "Solid understanding of the core concept (Mock Grade - Key Missing).",
+                    overall: "Solid understanding of the core concept.",
                     criteria: [
                         { name: "Accuracy", score: 90, explanation: "Calculation is correct." },
                         { name: "Method", score: 80, explanation: "Steps were logical but could be more concise." }

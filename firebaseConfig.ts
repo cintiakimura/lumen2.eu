@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import * as firebaseApp from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
@@ -16,7 +16,7 @@ const firebaseConfig = {
   appId: env.VITE_FIREBASE_APP_ID
 };
 
-const app = firebaseConfig.apiKey ? initializeApp(firebaseConfig) : null;
+const app = firebaseConfig.apiKey ? firebaseApp.initializeApp(firebaseConfig) : null;
 
 export const db = app ? getFirestore(app) : null;
 export const auth = app ? getAuth(app) : null;
