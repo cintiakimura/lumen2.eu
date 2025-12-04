@@ -32,6 +32,7 @@ export const checkStorageConnection = async (): Promise<boolean> => {
         await listAll(storageRef);
         return true;
     } catch (e: any) {
+        // storage/unauthorized is a 'connection' success (service reachable), just permission denied
         if (e.code === 'storage/unauthorized') return true; 
         if (e.code === 'storage/retry-limit-exceeded') return false;
         return false;
@@ -52,15 +53,17 @@ export const getClients = async (): Promise<Client[]> => {
     }
 };
 
-export const createClient = async (clientData: Client) => {
+export const createClient = async (clientData: Client): Promise<boolean> => {
     if (VITE_DEMO_MODE || !db) {
         console.log("Mock Create Client:", clientData);
-        return;
+        return true;
     }
     try {
         await setDoc(doc(db, "clients", clientData.id), clientData);
+        return true;
     } catch (e) {
         console.warn("Failed to create client, using fallback.", e);
+        return false;
     }
 };
 
@@ -88,12 +91,14 @@ export const getUsers = async (clientId?: string): Promise<User[]> => {
     }
 };
 
-export const createUser = async (userData: User) => {
-    if (VITE_DEMO_MODE || !db) return;
+export const createUser = async (userData: User): Promise<boolean> => {
+    if (VITE_DEMO_MODE || !db) return true;
     try {
         await setDoc(doc(db, "users", userData.id), userData);
+        return true;
     } catch (e) {
         console.warn("Failed to create user, using fallback.", e);
+        return false;
     }
 };
 
@@ -158,12 +163,14 @@ export const getCourses = async (clientId?: string): Promise<Unit[]> => {
     }
 };
 
-export const createCourse = async (courseData: Unit) => {
-    if (VITE_DEMO_MODE || !db) return;
+export const createCourse = async (courseData: Unit): Promise<boolean> => {
+    if (VITE_DEMO_MODE || !db) return true;
     try {
         await setDoc(doc(db, "courses", courseData.id), courseData);
+        return true;
     } catch (e) {
          console.warn("Failed to create course, using fallback.", e);
+         return false;
     }
 }
 
@@ -199,25 +206,29 @@ const getMockTasks = (unitId: string): Task[] => [
     { id: `T-${unitId}-2`, unitId, title: 'Practical Application', difficulty: 'Medium', completed: false }
 ];
 
-export const createTask = async (task: Task) => {
-    if (VITE_DEMO_MODE || !db) return;
+export const createTask = async (task: Task): Promise<boolean> => {
+    if (VITE_DEMO_MODE || !db) return true;
     try {
         await setDoc(doc(db, "tasks", task.id), task);
+        return true;
     } catch (e) {
         console.warn("Failed to create task, using fallback.", e);
+        return false;
     }
 }
 
 // --- SUBMISSIONS ---
-export const saveSubmission = async (submission: Submission) => {
+export const saveSubmission = async (submission: Submission): Promise<boolean> => {
     if (VITE_DEMO_MODE || !db) {
         console.log("Mock Save Submission", submission);
-        return;
+        return true;
     }
     try {
         await addDoc(collection(db, "submissions"), submission);
+        return true;
     } catch (e) {
         console.warn("Failed to save submission, using fallback.", e);
+        return false;
     }
 }
 

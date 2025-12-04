@@ -111,6 +111,7 @@ const Admin = () => {
     if (!newItemName) return;
 
     try {
+        let success = false;
         if (activeTab === 'clients') {
             const newClient: Client = {
                 id: `CLI-${newItemName.substring(0, 3).toUpperCase()}-${Math.floor(Math.random() * 1000)}`,
@@ -121,8 +122,7 @@ const Admin = () => {
                 logoInitials: newItemName.substring(0, 2).toUpperCase(),
                 domain: `${newItemName.toLowerCase().replace(/\s/g, '')}.com`
             };
-            await createClient(newClient);
-            toast.success("Client Created");
+            success = await createClient(newClient);
         } else if (activeTab === 'users') {
             const newUser: User = {
                 id: `USR-${Math.floor(Math.random() * 10000)}`,
@@ -132,8 +132,7 @@ const Admin = () => {
                 clientId: newItemClientId || (selectedClient?.id || clients[0]?.id),
                 status: 'Active'
             };
-            await createUser(newUser);
-            toast.success("User Created");
+            success = await createUser(newUser);
         } else if (activeTab === 'courses') {
             const newCourse: Unit = {
                 id: `MOD-${Math.floor(Math.random() * 1000)}`,
@@ -143,16 +142,20 @@ const Admin = () => {
                 progress: 0,
                 clientId: selectedClient ? selectedClient.id : undefined // Private if in client view
             };
-            await createCourse(newCourse);
+            success = await createCourse(newCourse);
             // Auto-create dummy tasks for functionality
             await createTask({ id: `T-${Date.now()}-1`, unitId: newCourse.id, title: 'Intro Task', difficulty: 'Easy', completed: false });
             await createTask({ id: `T-${Date.now()}-2`, unitId: newCourse.id, title: 'Advanced Analysis', difficulty: 'Hard', completed: false });
-            toast.success("Course Created");
         }
         
-        setShowModal(false);
-        setNewItemName('');
-        loadData(); // Refresh list
+        if (success) {
+            toast.success("Record Created Successfully");
+            setShowModal(false);
+            setNewItemName('');
+            loadData(); // Refresh list
+        } else {
+            toast.error("Failed to write to database (Check Permissions)");
+        }
     } catch (e) {
         toast.error("Error creating record");
         console.error(e);
@@ -164,18 +167,39 @@ const Admin = () => {
       const toastId = toast.loading("Seeding Database...");
       
       try {
-          for(const c of MOCK_CLIENTS) await createClient(c);
-          for(const u of MOCK_USERS) await createUser(u);
+          let successCount = 0;
+          let failCount = 0;
+
+          // Clients
+          for(const c of MOCK_CLIENTS) {
+              const ok = await createClient(c);
+              ok ? successCount++ : failCount++;
+          }
+          // Users
+          for(const u of MOCK_USERS) {
+              const ok = await createUser(u);
+              ok ? successCount++ : failCount++;
+          }
+          // Units & Tasks
           for(const unit of MOCK_UNITS) {
-              await createCourse(unit);
-              // Seed tasks for unit
+              const ok = await createCourse(unit);
+              ok ? successCount++ : failCount++;
+              
               await createTask({ id: `T-${unit.id}-1`, unitId: unit.id, title: 'Concept Check', difficulty: 'Easy', completed: false });
               await createTask({ id: `T-${unit.id}-2`, unitId: unit.id, title: 'Practical Application', difficulty: 'Medium', completed: false });
           }
-          toast.success("Database Populated!", { id: toastId });
+
+          if (failCount > 0 && successCount === 0) {
+              toast.error("Seeding Failed. Database not reachable or permissions denied.", { id: toastId });
+          } else if (failCount > 0) {
+               toast.success(`Seeded ${successCount} items. (${failCount} failed)`, { id: toastId });
+          } else {
+              toast.success("Database Populated Successfully!", { id: toastId });
+          }
+          
           loadData();
       } catch(e) {
-          toast.error("Seeding Failed", { id: toastId });
+          toast.error("Seeding Crashed", { id: toastId });
       }
   }
 
@@ -494,7 +518,7 @@ const Admin = () => {
                                 <h3 className="text-white font-medium flex items-center gap-2">
                                     {course.title}
                                     {course.clientId && (
-                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
+                                        <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
                                             PRIVATE: {course.clientId}
                                         </span>
                                     )}

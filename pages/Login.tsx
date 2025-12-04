@@ -56,6 +56,13 @@ const Login = () => {
     setShowDemo(false);
   };
 
+  const fillTestRegister = () => {
+      setName("Test Student " + Math.floor(Math.random()*100));
+      setEmail(`student${Date.now()}@test.com`);
+      setRole("Student");
+      setClientId("");
+  }
+
   return (
     <div className="min-h-screen bg-[#050a08] flex items-center justify-center relative overflow-hidden font-sans text-gray-100">
       {/* Background Effects */}
@@ -85,14 +92,14 @@ const Login = () => {
           <div className="flex bg-black/40 rounded-lg p-1 mb-6 border border-white/5">
               <button 
                 type="button"
-                onClick={() => { setIsLogin(true); setError(''); }}
+                onClick={() => { setIsLogin(true); setError(''); setEmail('sarah@lumen.ai'); }}
                 className={`flex-1 py-2 text-xs font-bold uppercase tracking-wide rounded-md transition-all ${isLogin ? 'bg-lumen-dim/30 text-lumen-primary shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
               >
                   Sign In
               </button>
               <button 
                 type="button"
-                onClick={() => { setIsLogin(false); setError(''); }}
+                onClick={() => { setIsLogin(false); setError(''); setName(''); setEmail(''); }}
                 className={`flex-1 py-2 text-xs font-bold uppercase tracking-wide rounded-md transition-all ${!isLogin ? 'bg-lumen-dim/30 text-lumen-secondary shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
               >
                   Register
@@ -104,6 +111,11 @@ const Login = () => {
             {/* Registration Fields */}
             {!isLogin && (
                 <div className="space-y-4 animate-in slide-in-from-left-2 duration-300">
+                     <div className="flex justify-end">
+                         <button type="button" onClick={fillTestRegister} className="text-[10px] text-lumen-secondary hover:underline">
+                            Fill Test Student
+                         </button>
+                     </div>
                      <div className="space-y-1">
                         <label className="text-[10px] font-mono text-gray-500 uppercase ml-1">Full Name</label>
                         <div className="relative">
