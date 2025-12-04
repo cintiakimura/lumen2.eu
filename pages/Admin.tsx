@@ -17,7 +17,8 @@ import {
   Activity,
   Server,
   Cpu,
-  HardDrive
+  HardDrive,
+  RefreshCw
 } from 'lucide-react';
 import { Client, User, Unit, UserRole } from '../types';
 import { getClients, getUsers, getCourses, createClient, createUser, createCourse, createTask, checkDBConnection, checkStorageConnection } from '../services/db';
@@ -256,6 +257,14 @@ const Admin = () => {
                             className="w-full bg-black/40 border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white focus:border-lumen-primary/50 focus:outline-none transition-colors"
                         />
                     </div>
+                    
+                    <button 
+                        onClick={loadData}
+                        className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                        title="Refresh Data"
+                    >
+                        <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+                    </button>
                 </div>
 
                 <div className="flex gap-3">
@@ -285,7 +294,8 @@ const Admin = () => {
 
         {/* CONTENT AREA */}
         {loading && activeTab !== 'diagnostics' && (
-            <div className="p-8 text-center text-lumen-primary animate-pulse">
+            <div className="p-8 text-center text-lumen-primary animate-pulse flex flex-col items-center gap-2">
+                <RefreshCw className="animate-spin" size={24} />
                 Loading Data from Firestore...
             </div>
         )}

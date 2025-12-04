@@ -1,19 +1,18 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User } from '../types';
-import { getUsers } from '../services/db';
-import { MOCK_USERS } from '../constants';
+import { User, UserRole } from '../types';
+import { getUsers, registerUser } from '../services/db';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string) => Promise<boolean>;
+  signup: (name: string, email: string, role: UserRole, clientId: string) => Promise<boolean>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -48,13 +47,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const signup = async (name: string, email: string, role: UserRole, clientId: string): Promise<boolean> => {
+      setLoading(true);
+      try {
+          const newUser = await registerUser(name, email, role, clientId);
+          setUser(newUser);
+          localStorage.setItem('lumen_user', JSON.stringify(newUser));
+          setLoading(false);
+          return true;
+      } catch (e) {
+          console.error("Signup error", e);
+          setLoading(false);
+          return false;
+      }
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem('lumen_user');
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );

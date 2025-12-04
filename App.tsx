@@ -12,7 +12,7 @@ import Audio from './pages/Audio';
 import Author from './pages/Author';
 import Admin from './pages/Admin';
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { user } = useAuth();
   if (!user) {
     return <Navigate to="/login" replace />;

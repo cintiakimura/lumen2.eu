@@ -1,6 +1,9 @@
-import React from 'react';
+
+import React, { useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { AlertTriangle, CheckCircle, Activity, Box } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Activity, Box, Shield } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const data = [
   { time: '09:00', load: 30, performance: 80 },
@@ -36,8 +39,30 @@ const MetricCard = ({ label, value, trend, icon: Icon, alert }: any) => (
 );
 
 const Dashboard = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // Auto-redirect Super Admins to the Admin Panel for convenience
+  useEffect(() => {
+      if (user?.role === 'Super Admin') {
+          navigate('/admin');
+      }
+  }, [user, navigate]);
+
   return (
     <div className="space-y-6">
+      {user?.role === 'Super Admin' && (
+          <div className="flex justify-center mb-4">
+              <button 
+                onClick={() => navigate('/admin')}
+                className="flex items-center gap-2 px-6 py-3 bg-lumen-primary/20 text-lumen-primary border border-lumen-primary rounded-lg hover:bg-lumen-primary/30 transition-all"
+              >
+                  <Shield size={20} />
+                  <span>Go to Admin Console</span>
+              </button>
+          </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard label="Overload Alerts" value="3" trend={-5} icon={AlertTriangle} alert />
         <MetricCard label="Modules Cleared" value="142" trend={12} icon={CheckCircle} />

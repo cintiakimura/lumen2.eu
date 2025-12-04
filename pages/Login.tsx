@@ -1,26 +1,58 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Loader2, ShieldCheck, ChevronRight, User, Terminal } from 'lucide-react';
+import { Loader2, ShieldCheck, ChevronRight, User, Terminal, Briefcase, Building2 } from 'lucide-react';
 import { MOCK_USERS } from '../constants';
+import { UserRole } from '../types';
 
 const Login = () => {
-  const { login, loading } = useAuth();
-  const [email, setEmail] = useState('');
+  const { login, signup, loading, user } = useAuth();
+  const navigate = useNavigate();
+  
+  // Mode State
+  const [isLogin, setIsLogin] = useState(true);
+  
+  // Form State - Pre-filled for Admin Access
+  const [email, setEmail] = useState('sarah@lumen.ai');
+  const [name, setName] = useState('');
+  const [role, setRole] = useState<UserRole>('Student');
+  const [clientId, setClientId] = useState('');
+  
   const [error, setError] = useState('');
   const [showDemo, setShowDemo] = useState(false);
+
+  // Auto-redirect if user is already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const success = await login(email);
-    if (!success) {
-      setError('Identity not recognized in Lumen Core.');
+
+    if (isLogin) {
+        const success = await login(email);
+        if (!success) {
+            setError('Identity not recognized. Please check email or register.');
+        }
+    } else {
+        if (!name || !email) {
+            setError("Name and Email are required.");
+            return;
+        }
+        const success = await signup(name, email, role, clientId);
+        if (!success) {
+            setError('Registration failed. Identity may already exist.');
+        }
     }
   };
 
   const handleDemoSelect = (demoEmail: string) => {
     setEmail(demoEmail);
+    setIsLogin(true);
     setShowDemo(false);
   };
 
@@ -46,26 +78,97 @@ const Login = () => {
            <p className="text-xs font-mono text-lumen-secondary mt-2 tracking-[0.2em]">IDENTITY VERIFICATION PROTOCOL</p>
         </div>
 
-        {/* Login Form */}
-        <div className="bg-lumen-surface/60 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-xs font-mono text-gray-500 uppercase ml-1">Technician ID / Email</label>
+        {/* Auth Card */}
+        <div className="bg-lumen-surface/60 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl transition-all duration-300">
+          
+          {/* Toggle Switch */}
+          <div className="flex bg-black/40 rounded-lg p-1 mb-6 border border-white/5">
+              <button 
+                type="button"
+                onClick={() => { setIsLogin(true); setError(''); }}
+                className={`flex-1 py-2 text-xs font-bold uppercase tracking-wide rounded-md transition-all ${isLogin ? 'bg-lumen-dim/30 text-lumen-primary shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                  Sign In
+              </button>
+              <button 
+                type="button"
+                onClick={() => { setIsLogin(false); setError(''); }}
+                className={`flex-1 py-2 text-xs font-bold uppercase tracking-wide rounded-md transition-all ${!isLogin ? 'bg-lumen-dim/30 text-lumen-secondary shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                  Register
+              </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            
+            {/* Registration Fields */}
+            {!isLogin && (
+                <div className="space-y-4 animate-in slide-in-from-left-2 duration-300">
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-mono text-gray-500 uppercase ml-1">Full Name</label>
+                        <div className="relative">
+                            <input 
+                            type="text" 
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="Operator Name"
+                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 pl-11 text-white placeholder-gray-600 focus:border-lumen-secondary focus:ring-1 focus:ring-lumen-secondary focus:outline-none transition-all font-mono text-sm"
+                            />
+                            <User size={16} className="absolute left-4 top-3.5 text-gray-500" />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                         <div className="space-y-1">
+                            <label className="text-[10px] font-mono text-gray-500 uppercase ml-1">Role</label>
+                            <div className="relative">
+                                <select 
+                                    value={role}
+                                    onChange={(e) => setRole(e.target.value as UserRole)}
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 pl-11 text-white appearance-none focus:border-lumen-secondary outline-none font-mono text-xs"
+                                >
+                                    <option value="Student">Student</option>
+                                    <option value="Teacher">Teacher</option>
+                                    <option value="Super Admin">Admin</option>
+                                </select>
+                                <Briefcase size={16} className="absolute left-4 top-3 text-gray-500" />
+                            </div>
+                        </div>
+                         <div className="space-y-1">
+                            <label className="text-[10px] font-mono text-gray-500 uppercase ml-1">Org Code</label>
+                            <div className="relative">
+                                <input 
+                                type="text" 
+                                value={clientId}
+                                onChange={(e) => setClientId(e.target.value)}
+                                placeholder="Optional"
+                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 pl-11 text-white placeholder-gray-600 focus:border-lumen-secondary outline-none font-mono text-xs"
+                                />
+                                <Building2 size={16} className="absolute left-4 top-3 text-gray-500" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Common Fields */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-mono text-gray-500 uppercase ml-1">Technician Email</label>
               <div className="relative">
                 <input 
                   type="email" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="user@organization.com"
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3.5 pl-11 text-white placeholder-gray-600 focus:border-lumen-primary focus:ring-1 focus:ring-lumen-primary focus:outline-none transition-all font-mono text-sm"
+                  className={`w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 pl-11 text-white placeholder-gray-600 focus:outline-none transition-all font-mono text-sm ${isLogin ? 'focus:border-lumen-primary focus:ring-1 focus:ring-lumen-primary' : 'focus:border-lumen-secondary focus:ring-1 focus:ring-lumen-secondary'}`}
                   autoFocus
                 />
-                <User size={16} className="absolute left-4 top-3.5 text-gray-500" />
+                <Terminal size={16} className="absolute left-4 top-3.5 text-gray-500" />
               </div>
             </div>
 
             {error && (
-              <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 p-3 rounded-lg flex items-center gap-2">
+              <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 p-3 rounded-lg flex items-center gap-2 animate-in fade-in">
                 <ShieldCheck size={14} />
                 {error}
               </div>
@@ -74,10 +177,10 @@ const Login = () => {
             <button 
               type="submit" 
               disabled={loading}
-              className="w-full py-3.5 bg-lumen-primary text-black font-bold rounded-xl hover:bg-lumen-highlight hover:scale-[1.02] active:scale-[0.98] transition-all shadow-glow flex items-center justify-center gap-2"
+              className={`w-full py-3.5 text-black font-bold rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-glow flex items-center justify-center gap-2 ${isLogin ? 'bg-lumen-primary hover:bg-lumen-highlight' : 'bg-lumen-secondary hover:bg-cyan-300'}`}
             >
-              {loading ? <Loader2 size={18} className="animate-spin" /> : <Terminal size={18} />}
-              {loading ? 'AUTHENTICATING...' : 'INITIALIZE SESSION'}
+              {loading ? <Loader2 size={18} className="animate-spin" /> : (isLogin ? <User size={18} /> : <ShieldCheck size={18} />)}
+              {loading ? 'PROCESSING...' : (isLogin ? 'INITIALIZE SESSION' : 'CREATE IDENTITY')}
             </button>
           </form>
 
@@ -110,7 +213,7 @@ const Login = () => {
         </div>
         
         <div className="mt-8 text-center text-[10px] text-gray-600 font-mono">
-           SECURE CONNECTION ESTABLISHED • V2.4.0
+           SECURE CONNECTION ESTABLISHED • V2.4.1
         </div>
       </div>
     </div>

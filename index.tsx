@@ -5,7 +5,7 @@ import App from './App';
 console.log("Initializing Lumen Academy App...");
 
 interface ErrorBoundaryProps {
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 interface ErrorBoundaryState {
@@ -13,12 +13,8 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false, error: null };
-
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-  }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };

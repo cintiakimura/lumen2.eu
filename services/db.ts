@@ -11,7 +11,7 @@ import {
 } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL, listAll } from "firebase/storage";
 import { db, storage } from "../firebaseConfig";
-import { Client, User, Unit, Submission } from "../types";
+import { Client, User, Unit, Submission, UserRole } from "../types";
 import { MOCK_CLIENTS, MOCK_USERS, MOCK_UNITS, VITE_DEMO_MODE } from "../constants";
 
 // --- CONNECTION CHECKS ---
@@ -28,16 +28,10 @@ export const checkDBConnection = async (): Promise<boolean> => {
 export const checkStorageConnection = async (): Promise<boolean> => {
     if (VITE_DEMO_MODE || !storage) return false;
     try {
-        // Try to list root or a public folder. Even empty result is a success.
         const storageRef = ref(storage, '/');
         await listAll(storageRef);
         return true;
     } catch (e: any) {
-        // If it's permission denied (403), connection is technically "working" but access denied.
-        // If it's network error, connection is broken.
-        // For diagnostic purposes, we return true if we reached the server, false if network error.
-        // But usually listAll fails with permissions on root. 
-        // Let's assume ANY response that isn't network error means "Online".
         if (e.code === 'storage/unauthorized') return true; 
         if (e.code === 'storage/retry-limit-exceeded') return false;
         return false;
@@ -101,6 +95,49 @@ export const createUser = async (userData: User) => {
     } catch (e) {
         console.warn("Failed to create user, using fallback.", e);
     }
+};
+
+export const registerUser = async (name: string, email: string, role: UserRole, clientId: string): Promise<User> => {
+    // 1. Efficiently check if user exists (Query instead of Download All)
+    if (!VITE_DEMO_MODE && db) {
+        try {
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("email", "==", email));
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                throw new Error("User identity already registered.");
+            }
+        } catch (e: any) {
+            // If it's the duplicate user error, rethrow. Otherwise, log and potentially fallback.
+            if (e.message === "User identity already registered.") throw e;
+            console.warn("DB Query Error during registration check, proceeding cautiously:", e);
+        }
+    } else {
+        // Fallback for Mock Mode
+        const allUsers = await getUsers();
+        const existing = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+        if (existing) throw new Error("User identity already registered.");
+    }
+
+    // 2. Create new User object
+    const newUser: User = {
+        id: `USR-${Date.now()}`,
+        name,
+        email,
+        role,
+        clientId: clientId || 'GLOBAL', // Default to global if no code provided
+        status: 'Active'
+    };
+
+    // 3. Save to DB
+    await createUser(newUser);
+    
+    // 4. Update local mock data immediately for smooth UX if in offline/demo mode
+    if (VITE_DEMO_MODE || !db) {
+        MOCK_USERS.push(newUser);
+    }
+
+    return newUser;
 };
 
 // --- COURSES ---
