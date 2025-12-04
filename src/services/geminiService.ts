@@ -1,17 +1,12 @@
-
 import { GoogleGenAI } from "@google/genai";
 
 let client: GoogleGenAI | null = null;
 
-// Safe Environment Variable Access for Vite
-const meta = import.meta as any;
-const env = meta && meta.env ? meta.env : {};
-const apiKey = env.VITE_GEMINI_API_KEY || env.VITE_API_KEY || (typeof process !== 'undefined' && process.env ? process.env.API_KEY : undefined);
-
-// Initialize client safely
+// Initialize client safely using environment variables
 try {
-  if (apiKey) {
-    client = new GoogleGenAI({ apiKey: apiKey });
+  // The API key must be obtained exclusively from process.env.API_KEY.
+  if (process.env.API_KEY) {
+    client = new GoogleGenAI({ apiKey: process.env.API_KEY });
   } else {
     console.warn("Gemini API Key not found. Chat features will be disabled.");
   }
@@ -43,8 +38,6 @@ export const sendMessageToGemini = async (history: { role: 'user' | 'model'; tex
 };
 
 export const gradeSubmissionAI = async (task: string, response: string): Promise<any> => {
-    // In a real backend, this would use the Vertex AI code from the prompt.
-    // Here we simulate it or use Gemini Flash if available for a 'frontend-only' demo.
     
     if (!client) {
         // Fallback Mock Logic
@@ -52,7 +45,7 @@ export const gradeSubmissionAI = async (task: string, response: string): Promise
             resolve({
                 score: 85,
                 feedback: {
-                    overall: "Solid understanding of the core concept.",
+                    overall: "Solid understanding of the core concept (Mock Grade - Key Missing).",
                     criteria: [
                         { name: "Accuracy", score: 90, explanation: "Calculation is correct." },
                         { name: "Method", score: 80, explanation: "Steps were logical but could be more concise." }

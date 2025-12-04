@@ -1,11 +1,10 @@
-
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 import { getMessaging } from "firebase/messaging";
 
-// Safe Environment Access
+// Safe Environment Access for Vite (Browser)
 const meta = import.meta as any;
 const env = meta && meta.env ? meta.env : {};
 

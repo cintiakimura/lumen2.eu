@@ -4,11 +4,14 @@ let client: GoogleGenAI | null = null;
 
 // Initialize client safely
 try {
+  // The API key must be obtained exclusively from process.env.API_KEY.
   if (process.env.API_KEY) {
     client = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  } else {
+    console.warn("Gemini API Key not found. Chat features will be disabled.");
   }
 } catch (e) {
-  console.warn("Gemini API Key not found. Chat features will be disabled.");
+  console.warn("Error initializing Gemini client:", e);
 }
 
 export const sendMessageToGemini = async (history: { role: 'user' | 'model'; text: string }[], newMessage: string): Promise<string> => {
@@ -35,8 +38,6 @@ export const sendMessageToGemini = async (history: { role: 'user' | 'model'; tex
 };
 
 export const gradeSubmissionAI = async (task: string, response: string): Promise<any> => {
-    // In a real backend, this would use the Vertex AI code from the prompt.
-    // Here we simulate it or use Gemini Flash if available for a 'frontend-only' demo.
     
     if (!client) {
         // Fallback Mock Logic
@@ -65,8 +66,13 @@ export const gradeSubmissionAI = async (task: string, response: string): Promise
                 responseMimeType: "application/json"
             }
         });
-        return JSON.parse(result.text || "{}");
+        
+        // Clean response of any markdown code blocks if present
+        const text = result.text || "{}";
+        const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(cleanedText);
     } catch (e) {
+        console.error("Grading Error:", e);
         return {
             score: 0,
             feedback: { overall: "System Error during grading.", criteria: [] },
