@@ -218,7 +218,7 @@ export const Layout = ({ children }: PropsWithChildren) => {
                     </div>
                     {!collapsed && (
                         <div>
-                            <p className={`text-xs font-bold uppercase ${currentRank.color}`}>{user?.rank || 'ROOKIE'}</p>
+                            <p className={`text-[10px] font-bold uppercase ${currentRank.color}`}>{user?.rank || 'OPERATIVE'}</p>
                             <p className="text-[10px] text-gray-500 font-mono">{user?.xp || 0} XP</p>
                         </div>
                     )}

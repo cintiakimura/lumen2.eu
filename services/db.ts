@@ -139,7 +139,7 @@ export const registerUser = async (name: string, email: string, role: UserRole, 
         clientId: clientId || 'GLOBAL',
         status: 'Active',
         xp: 0,
-        rank: 'Rookie',
+        rank: 'Operative',
         badges: []
     };
 
@@ -157,8 +157,9 @@ export const registerUser = async (name: string, email: string, role: UserRole, 
 
 export const updateUserXP = async (userId: string, amount: number): Promise<{ newXP: number, newRank: Rank | null }> => {
     // Helper to calc rank
-    const calcRank = (xp: number, currentRank: Rank) => {
-        const nextRank = RANKS.slice().reverse().find(r => xp >= r.minXP);
+    const calcRank = (xp: number, currentRank: Rank): Rank | null => {
+        // Reverse iterate RANKS to find highest qualifying rank
+        const nextRank = [...RANKS].reverse().find(r => xp >= r.minXP);
         if (nextRank && nextRank.name !== currentRank) {
             return nextRank.name;
         }

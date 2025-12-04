@@ -65,12 +65,13 @@ export interface ChatMessage {
 // Admin Types
 export type UserRole = 'Super Admin' | 'Teacher' | 'Student';
 
-export type Rank = 'Rookie' | 'Technician' | 'Specialist' | 'Master' | 'Wizard';
+// Updated Professional Ranks
+export type Rank = 'Operative' | 'Technician' | 'Specialist' | 'Senior Engineer' | 'Systems Architect';
 
 export interface Badge {
   id: string;
   name: string;
-  icon: string;
+  icon: string; // This will now represent a Lucide icon key or descriptive string rather than an emoji
   description: string;
   unlockedAt?: number;
 }

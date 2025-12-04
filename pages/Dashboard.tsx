@@ -61,9 +61,9 @@ const StudentDashboard = ({ user }: { user: any }) => {
                 {/* Right Stat Block */}
                 <div className="relative z-10 p-8 md:border-l border-white/10 flex flex-col justify-center w-full md:w-80 bg-black/20 backdrop-blur-sm">
                      <div className="text-center mb-6">
-                         <div className="text-6xl mb-2 drop-shadow-glow">{currentRank.image}</div>
-                         <h2 className={`text-2xl font-black uppercase tracking-widest ${currentRank.color}`}>{user.rank}</h2>
-                         <p className="text-xs text-gray-500 font-mono">CLEARANCE LEVEL {RANKS.indexOf(currentRank) + 1}</p>
+                         <div className={`text-5xl font-black mb-2 ${currentRank.color} drop-shadow-glow`}>{currentRank.image}</div>
+                         <h2 className={`text-xl font-bold uppercase tracking-widest ${currentRank.color}`}>{user.rank}</h2>
+                         <p className="text-xs text-gray-500 font-mono mt-1">CLEARANCE LEVEL {RANKS.indexOf(currentRank) + 1}</p>
                      </div>
                      
                      <div className="space-y-1">

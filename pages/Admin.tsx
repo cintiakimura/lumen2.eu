@@ -132,7 +132,7 @@ const Admin = () => {
                 clientId: newItemClientId || (selectedClient?.id || clients[0]?.id),
                 status: 'Active',
                 xp: 0,
-                rank: 'Rookie',
+                rank: 'Operative',
                 badges: []
             };
             success = await createUser(newUser);
@@ -615,3 +615,4 @@ const Admin = () => {
 };
 
 export default Admin;
+    

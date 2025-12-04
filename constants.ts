@@ -5,21 +5,21 @@ import { Unit, Client, User, Rank, Badge } from './types';
 // Feature flags
 export const VITE_DEMO_MODE = false;
 
-// Gamification Constants
+// Gamification Constants - Professional/Industrial Theme
 export const RANKS: { name: Rank; minXP: number; color: string; image: string }[] = [
-    { name: 'Rookie', minXP: 0, color: 'text-gray-400', image: '🛡️' },
-    { name: 'Technician', minXP: 1000, color: 'text-lumen-secondary', image: '⚙️' },
-    { name: 'Specialist', minXP: 3000, color: 'text-lumen-primary', image: '⚡' },
-    { name: 'Master', minXP: 6000, color: 'text-purple-400', image: '🔮' },
-    { name: 'Wizard', minXP: 10000, color: 'text-yellow-400', image: '🧙‍♂️' },
+    { name: 'Operative', minXP: 0, color: 'text-gray-400', image: 'T-1' },
+    { name: 'Technician', minXP: 1000, color: 'text-lumen-secondary', image: 'T-2' },
+    { name: 'Specialist', minXP: 3000, color: 'text-lumen-primary', image: 'S-3' },
+    { name: 'Senior Engineer', minXP: 6000, color: 'text-purple-400', image: 'E-4' },
+    { name: 'Systems Architect', minXP: 10000, color: 'text-yellow-400', image: 'A-5' },
 ];
 
 export const BADGES: Badge[] = [
-    { id: 'b1', name: 'First Spark', icon: '⚡', description: 'Completed first module' },
-    { id: 'b2', name: 'Precision', icon: '🎯', description: 'Scored 100% on a test' },
-    { id: 'b3', name: 'Speedster', icon: '🚀', description: 'Finished task under 1 min' },
-    { id: 'b4', name: 'Safety First', icon: '🦺', description: 'Completed Safety Module without errors' },
-    { id: 'b5', name: 'Neural Link', icon: '🧠', description: 'Engaged with AI Tutor 10 times' },
+    { id: 'b1', name: 'System Initialization', icon: 'zap', description: 'First module successfully integrated.' },
+    { id: 'b2', name: 'Zero Tolerance', icon: 'crosshair', description: 'Achieved 100% calibration accuracy on assessment.' },
+    { id: 'b3', name: 'Velocity Efficiency', icon: 'timer', description: 'Completed operation cycle in record time.' },
+    { id: 'b4', name: 'Protocol Alpha', icon: 'shield', description: 'Full compliance with Safety Standards.' },
+    { id: 'b5', name: 'Neural Uplink', icon: 'brain', description: 'Established high-bandwidth connection with AI Core.' },
 ];
 
 // Mock Clients (Tenants) - Fallback / Seeding Data
@@ -31,11 +31,11 @@ export const MOCK_CLIENTS: Client[] = [
 
 // Mock Users with strict Client Association
 export const MOCK_USERS: User[] = [
-  { id: 'ADM-001', name: 'Sarah Connor', email: 'sarah@lumen.ai', role: 'Super Admin', clientId: 'LUMEN-CORE', status: 'Active', xp: 12500, rank: 'Wizard', badges: [BADGES[0], BADGES[1]] },
+  { id: 'ADM-001', name: 'Sarah Connor', email: 'sarah@lumen.ai', role: 'Super Admin', clientId: 'LUMEN-CORE', status: 'Active', xp: 12500, rank: 'Systems Architect', badges: [BADGES[0], BADGES[1]] },
   // Tesla Users
-  { id: 'TCH-102', name: 'Dr. Octavius', email: 'doc@tesla.com', role: 'Teacher', clientId: 'CLI-TESLA', status: 'Active', xp: 8000, rank: 'Master', badges: [BADGES[1]] },
+  { id: 'TCH-102', name: 'Dr. Octavius', email: 'doc@tesla.com', role: 'Teacher', clientId: 'CLI-TESLA', status: 'Active', xp: 8000, rank: 'Senior Engineer', badges: [BADGES[1]] },
   { id: 'OP-442', name: 'Rivera, Alex', email: 'arivera@tesla.com', role: 'Student', clientId: 'CLI-TESLA', status: 'Active', xp: 2400, rank: 'Technician', badges: [BADGES[0]] },
-  { id: 'OP-445', name: 'Kowalski, P', email: 'pkowalski@tesla.com', role: 'Student', clientId: 'CLI-TESLA', status: 'Active', xp: 500, rank: 'Rookie', badges: [] },
+  { id: 'OP-445', name: 'Kowalski, P', email: 'pkowalski@tesla.com', role: 'Student', clientId: 'CLI-TESLA', status: 'Active', xp: 500, rank: 'Operative', badges: [] },
   // SpaceX Users
   { id: 'OP-443', name: 'Chen, Wei', email: 'wchen@spacex.com', role: 'Student', clientId: 'CLI-SPACEX', status: 'Active', xp: 4500, rank: 'Specialist', badges: [BADGES[0], BADGES[2]] },
   { id: 'OP-444', name: 'Smith, J', email: 'jsmith@spacex.com', role: 'Student', clientId: 'CLI-SPACEX', status: 'Active', xp: 1200, rank: 'Technician', badges: [] },
