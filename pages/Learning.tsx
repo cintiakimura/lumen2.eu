@@ -1,12 +1,21 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
-import { PlayCircle, CheckCircle, Lock, BookOpen, Star, Mic, Send, Bot, User, ArrowRight, X, Zap, Shield, HelpCircle, Terminal } from 'lucide-react';
+import { PlayCircle, CheckCircle, Lock, BookOpen, Star, Mic, Send, Bot, User, ArrowRight, X, Zap, Shield, HelpCircle, Terminal, MapPin } from 'lucide-react';
 import { runAdaptiveTutor } from '../services/geminiService';
 import { getCourses, updateUserXP } from '../services/db';
 import { Unit } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
+
+// --- VISUAL MOCKUP DATA (Fallback) ---
+const DEMO_SKILL_TREE: Unit[] = [
+    { id: 'DEMO-01', title: 'Safety Protocols', category: 'Safety', status: 'completed', progress: 100, coordinates: { x: 10, y: 50 }, xpReward: 100, content: "Always wear PPE. Lockout/Tagout is mandatory." },
+    { id: 'DEMO-02', title: 'High Voltage', category: 'Physics', status: 'active', progress: 0, coordinates: { x: 30, y: 30 }, xpReward: 300, content: "Understanding potential difference and current flow in industrial systems." },
+    { id: 'DEMO-03', title: 'Hydraulics I', category: 'Mechanics', status: 'locked', progress: 0, coordinates: { x: 30, y: 70 }, xpReward: 300 },
+    { id: 'DEMO-04', title: 'Circuit Logic', category: 'Physics', status: 'locked', progress: 0, coordinates: { x: 50, y: 30 }, xpReward: 500 },
+    { id: 'DEMO-05', title: 'Adv. Diagnostics', category: 'Mechanics', status: 'locked', progress: 0, coordinates: { x: 70, y: 50 }, xpReward: 1000 },
+    { id: 'DEMO-06', title: 'Mastery Exam', category: 'Safety', status: 'locked', progress: 0, coordinates: { x: 90, y: 50 }, xpReward: 2500 },
+];
 
 const Learning = () => {
   const { user } = useAuth();
@@ -24,9 +33,24 @@ const Learning = () => {
 
   useEffect(() => {
     const loadData = async () => {
-        if (!user) return;
-        const data = await getCourses(user.clientId);
-        setUnits(data);
+        // Try to load real data
+        let data: Unit[] = [];
+        if (user) {
+            data = await getCourses(user.clientId);
+        }
+        
+        // If no data found (empty DB or filtered out), load the Mockup
+        if (!data || data.length === 0) {
+            console.log("No courses found. Loading Demo Skill Tree.");
+            setUnits(DEMO_SKILL_TREE);
+        } else {
+            // Ensure data has coordinates (map fallbacks if missing)
+            const mappedData = data.map((u, i) => ({
+                ...u,
+                coordinates: u.coordinates || { x: 15 + (i * 20), y: 50 + (i % 2 === 0 ? -15 : 15) }
+            }));
+            setUnits(mappedData);
+        }
     };
     loadData();
   }, [user]);
@@ -38,9 +62,9 @@ const Learning = () => {
   // Handle Node Click -> Open Briefing
   const handleSystemSelect = (unit: Unit) => {
       if (unit.status === 'locked') {
-          toast.error("System Locked. Complete previous missions first.", { 
+          toast.error("Clearance Denied. Complete previous modules.", { 
               icon: '🔒',
-              style: { background: '#111', color: '#fff', border: '1px solid #333' }
+              style: { background: '#0a1410', color: '#ff4444', border: '1px solid #333' }
           });
           return;
       }
@@ -63,9 +87,17 @@ const Learning = () => {
       setMode('test');
       setMessages([{
           role: 'model',
-          text: `SYSTEM OVERRIDE DETECTED.\n\nIdentity confirmed: ${user?.name}.\nTo secure this node, you must demonstrate mastery of: ${unit.title.toUpperCase()}.\n\nStandby for query...`
+          text: `SYSTEM OVERRIDE DETECTED.\n\nIdentity confirmed: ${user?.name || 'OPERATIVE'}.\nTo secure this node, you must demonstrate mastery of: ${unit.title.toUpperCase()}.\n\nStandby for query...`
       }]);
       setTestPassed(false);
+      
+      // Auto-start the tutor after a slight delay
+      setTimeout(() => {
+         const initialPrompt = unit.content ? `Ask me a question about: ${unit.content}` : "Ask me a basic question about this topic.";
+         runAdaptiveTutor([], initialPrompt, unit.content || "General Knowledge").then(res => {
+             setMessages(prev => [...prev, { role: 'model', text: res.text }]);
+         });
+      }, 1000);
   };
 
   const handleSendMessage = async () => {
@@ -120,10 +152,12 @@ const Learning = () => {
           if (u.id === activeUnit.id) {
               return { ...u, status: 'completed' as const, progress: 100 };
           }
-          // Simple unlock logic for the very next node
-          const currentIndex = units.findIndex(un => un.id === activeUnit.id);
-          if (i === currentIndex + 1) {
-              return { ...u, status: 'active' as const };
+          // Unlock logic: Unlock ANY node that is physically close and to the right
+          if (u.status === 'locked' && u.coordinates && activeUnit.coordinates) {
+               // Simple logic: If x is greater (to the right) and not too far
+               if (u.coordinates.x > activeUnit.coordinates.x && u.coordinates.x < activeUnit.coordinates.x + 30) {
+                   return { ...u, status: 'active' as const };
+               }
           }
           return u; 
       });
@@ -131,61 +165,84 @@ const Learning = () => {
       setUnits(updatedUnits);
   };
 
+  // Helper to draw curved lines between nodes
+  const renderConnections = () => {
+      return units.map((unit, i) => {
+          // Find potential connections (next nodes to the right)
+          if (!unit.coordinates) return null;
+          
+          // Logic: Connect to nodes that are in the "next column" (approx +20% x)
+          const targets = units.filter(u => 
+              u.coordinates && 
+              u.coordinates.x > unit.coordinates!.x && 
+              u.coordinates.x < unit.coordinates!.x + 30
+          );
+
+          return targets.map(target => {
+              if (!target.coordinates || !unit.coordinates) return null;
+              
+              const x1 = unit.coordinates.x;
+              const y1 = unit.coordinates.y;
+              const x2 = target.coordinates.x;
+              const y2 = target.coordinates.y;
+              
+              const isPathActive = unit.status === 'completed';
+              const isTargetUnlocked = target.status !== 'locked';
+
+              return (
+                  <g key={`${unit.id}-${target.id}`}>
+                      {/* Bezier Curve */}
+                      <path 
+                        d={`M ${x1} ${y1} C ${x1 + 10} ${y1}, ${x2 - 10} ${y2}, ${x2} ${y2}`}
+                        fill="none"
+                        stroke={isPathActive ? '#00c600' : '#333'}
+                        strokeWidth={isPathActive ? 2 : 1}
+                        strokeDasharray={isPathActive ? '0' : '5,5'}
+                        vectorEffect="non-scaling-stroke"
+                        className="transition-all duration-1000"
+                        opacity={isPathActive ? 0.6 : 0.3}
+                      />
+                      {/* Flow Particle */}
+                      {isPathActive && isTargetUnlocked && (
+                          <circle r="2" fill="#39FF14">
+                              <animateMotion 
+                                  dur="2s" 
+                                  repeatCount="indefinite"
+                                  path={`M ${x1} ${y1} C ${x1 + 10} ${y1}, ${x2 - 10} ${y2}, ${x2} ${y2}`}
+                                  keyPoints="0;1"
+                                  keyTimes="0;1"
+                                  calcMode="linear"
+                              />
+                          </circle>
+                      )}
+                  </g>
+              );
+          });
+      });
+  };
+
   return (
     <div className="h-[calc(100vh-8rem)] relative overflow-hidden bg-[#050a08] rounded-3xl border border-white/5 shadow-2xl">
         
         {/* --- MODE: MAP (The Galaxy View) --- */}
         {mode === 'map' && (
-            <div className="absolute inset-0 overflow-auto cursor-grab active:cursor-grabbing custom-scrollbar">
+            <div className="absolute inset-0 overflow-hidden cursor-grab active:cursor-grabbing custom-scrollbar">
                 {/* Background Grid */}
-                <div className="absolute inset-0 w-[200%] h-[200%] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none"></div>
+                <div className="absolute inset-0 w-full h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none"></div>
                 <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at center, transparent 0%, #050a08 100%)' }}></div>
                 
+                {/* Tech Grid Lines */}
+                <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ 
+                    backgroundImage: 'linear-gradient(rgba(0, 198, 0, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 198, 0, 0.3) 1px, transparent 1px)', 
+                    backgroundSize: '10% 10%' 
+                }}></div>
+
                 {/* MAP CONTAINER */}
-                <div className="relative w-full h-full min-h-[600px] flex items-center justify-center">
+                <div className="relative w-full h-full min-h-[600px]">
                     
-                    {/* SVG Connections */}
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                        <defs>
-                             <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                                <feGaussianBlur stdDeviation="4" result="blur" />
-                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                            </filter>
-                        </defs>
-                        {units.map((unit, i) => {
-                             if (i === units.length - 1) return null;
-                             const next = units[i+1];
-                             if (!unit.coordinates || !next.coordinates) return null;
-                             
-                             const isPathActive = unit.status === 'completed';
-                             
-                             return (
-                                 <g key={i}>
-                                     {/* Base Line */}
-                                     <line 
-                                        x1={`${unit.coordinates.x}%`} 
-                                        y1={`${unit.coordinates.y}%`} 
-                                        x2={`${next.coordinates.x}%`} 
-                                        y2={`${next.coordinates.y}%`} 
-                                        stroke={isPathActive ? '#00c600' : '#333'} 
-                                        strokeWidth={isPathActive ? 3 : 2}
-                                        strokeDasharray={isPathActive ? '0' : '5,5'}
-                                        opacity={isPathActive ? 0.5 : 0.3}
-                                     />
-                                     {/* Animated Pulse Packet on Active Paths */}
-                                     {isPathActive && (
-                                         <circle r="3" fill="#39FF14">
-                                             <animateMotion 
-                                                dur="3s" 
-                                                repeatCount="indefinite"
-                                                path={`M${unit.coordinates.x * window.innerWidth / 100},${unit.coordinates.y * window.innerHeight / 100} L${next.coordinates.x * window.innerWidth / 100},${next.coordinates.y * window.innerHeight / 100}`} // Note: This coordinate logic is simplified for SVG; proper responsive SVG math needs viewBox.
-                                                // Simplified visual fallback for demo:
-                                             />
-                                         </circle>
-                                     )}
-                                 </g>
-                             );
-                        })}
+                    {/* SVG Layer for Lines - Using percentages for responsiveness */}
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        {renderConnections()}
                     </svg>
 
                     {/* Nodes */}
@@ -193,41 +250,50 @@ const Learning = () => {
                         <div 
                             key={unit.id}
                             onClick={() => handleSystemSelect(unit)}
-                            className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 group cursor-pointer`}
+                            className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 group cursor-pointer z-10`}
                             style={{ left: `${unit.coordinates?.x || 50}%`, top: `${unit.coordinates?.y || 50}%` }}
                         >
                             {/* Pulse Effect for Active */}
                             {unit.status === 'active' && (
-                                <div className="absolute inset-0 bg-lumen-primary/30 rounded-full animate-ping duration-[2000ms]"></div>
+                                <div className="absolute inset-0 -m-4 bg-lumen-primary/20 rounded-full animate-ping duration-[2000ms]"></div>
                             )}
 
                             {/* Node Circle */}
                             <div className={`
-                                w-16 h-16 md:w-20 md:h-20 rounded-full flex flex-col items-center justify-center border-4 relative z-10 shadow-xl transition-transform hover:scale-110
+                                w-14 h-14 md:w-16 md:h-16 rounded-full flex flex-col items-center justify-center border-2 relative z-10 shadow-xl transition-transform hover:scale-110
                                 ${unit.status === 'completed' 
                                     ? 'bg-black border-lumen-primary text-lumen-primary shadow-[0_0_20px_rgba(0,198,0,0.4)]' 
                                     : unit.status === 'active'
-                                        ? 'bg-black border-white text-white shadow-[0_0_20px_rgba(255,255,255,0.4)]'
+                                        ? 'bg-lumen-dim/40 border-white text-white shadow-[0_0_20px_rgba(255,255,255,0.4)] backdrop-blur-md'
                                         : 'bg-black/80 border-gray-800 text-gray-700'}
                             `}>
-                                {unit.status === 'completed' ? <CheckCircle size={28} /> : 
-                                 unit.status === 'locked' ? <Lock size={24} /> : 
-                                 <Star size={28} fill="currentColor" />}
+                                {unit.status === 'completed' ? <CheckCircle size={24} /> : 
+                                 unit.status === 'locked' ? <Lock size={20} /> : 
+                                 <Star size={24} fill="currentColor" />}
                             </div>
 
                             {/* Label */}
                             <div className={`
-                                absolute top-full mt-3 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-1 rounded bg-black/80 backdrop-blur border text-xs font-mono transition-all duration-300
+                                absolute top-full mt-3 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-1 rounded bg-black/90 backdrop-blur border text-[10px] font-mono uppercase tracking-widest transition-all duration-300
                                 ${unit.status === 'locked' 
                                     ? 'border-transparent text-gray-600 opacity-50' 
                                     : unit.status === 'active' 
-                                        ? 'border-white text-white scale-110 font-bold'
+                                        ? 'border-white text-white scale-110 font-bold shadow-lg'
                                         : 'border-lumen-primary/30 text-lumen-primary'}
                             `}>
                                 {unit.title}
                             </div>
                         </div>
                     ))}
+                    
+                    {/* Legend / Title */}
+                    <div className="absolute top-6 left-6 pointer-events-none">
+                        <div className="flex items-center gap-2 mb-2">
+                            <MapPin className="text-lumen-primary" size={20} />
+                            <h2 className="text-white text-xl font-light uppercase tracking-widest">Training Matrix</h2>
+                        </div>
+                        <p className="text-gray-500 font-mono text-xs">SECTOR: {user?.clientId || 'GLOBAL'} // SYS.V2</p>
+                    </div>
                 </div>
             </div>
         )}
@@ -250,12 +316,12 @@ const Learning = () => {
                         </div>
                         
                         <div className="grid grid-cols-2 gap-4 mb-8">
-                            <div className="bg-white/5 p-5 rounded-xl border border-white/5">
-                                <p className="text-xs text-gray-400 font-mono mb-2 uppercase tracking-wider">Parameters</p>
-                                <p className="text-white text-sm leading-relaxed">{activeUnit.content?.substring(0, 100)}...</p>
+                            <div className="bg-white/5 p-5 rounded-xl border border-white/5 col-span-2 md:col-span-1">
+                                <p className="text-xs text-gray-400 font-mono mb-2 uppercase tracking-wider">Objectives</p>
+                                <p className="text-white text-sm leading-relaxed">{activeUnit.content?.substring(0, 150) || "Master the core concepts to unlock the next sector."}...</p>
                             </div>
-                            <div className="bg-white/5 p-5 rounded-xl border border-white/5">
-                                <p className="text-xs text-gray-400 font-mono mb-2 uppercase tracking-wider">Bounties</p>
+                            <div className="bg-white/5 p-5 rounded-xl border border-white/5 col-span-2 md:col-span-1">
+                                <p className="text-xs text-gray-400 font-mono mb-2 uppercase tracking-wider">Rewards</p>
                                 <div className="flex items-center gap-2 text-yellow-400 font-bold text-lg mb-1">
                                     <Zap size={20} fill="currentColor" /> {activeUnit.xpReward || 500} XP
                                 </div>
@@ -314,7 +380,7 @@ const Learning = () => {
                             
                             <h2 className="text-2xl text-white font-bold mb-4">Transmission Decoded</h2>
                             <div className="prose prose-invert prose-lg text-gray-300 mb-12">
-                                <p>{activeUnit.content}</p>
+                                <p>{activeUnit.content || "The system provides standard operating procedures for this module. Review the video material and ensure comprehension of key safety vectors."}</p>
                             </div>
 
                             <button 
@@ -331,7 +397,7 @@ const Learning = () => {
                     <div className="w-80 border-l border-white/10 bg-black/20 p-6 hidden lg:block backdrop-blur-sm">
                         <h4 className="text-xs font-mono text-gray-500 uppercase mb-4 tracking-wider">Module Checklist</h4>
                         <div className="space-y-2">
-                            {activeUnit.nodes?.map((node, i) => (
+                            {(activeUnit.nodes || [{ id: 'n1', title: 'Core Concepts', completed: false }, { id: 'n2', title: 'Advanced Theory', completed: false }]).map((node, i) => (
                                 <div key={i} className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
                                     activeNode?.id === node.id ? 'bg-lumen-primary/10 border-lumen-primary/30 text-white' : 'border-transparent text-gray-500 hover:bg-white/5'
                                 }`}>
@@ -349,7 +415,7 @@ const Learning = () => {
         {mode === 'test' && (
             <div className="absolute inset-0 z-30 bg-black flex flex-col font-mono text-green-500">
                 {/* CRT Effect Overlay */}
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 pointer-events-none bg-[length:100%_2px,3px_100%]"></div>
+                <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 pointer-events-none bg-[length:100%_2px,3px_100%] opacity-50"></div>
                 
                 {/* Header */}
                 <div className="p-4 border-b border-green-500/30 flex justify-between items-center bg-green-900/10 relative z-20">
@@ -370,10 +436,7 @@ const Learning = () => {
                                 ? 'border-white/30 text-white bg-white/5 rounded-l-xl rounded-br-xl' 
                                 : 'border-green-500/30 text-green-400 bg-green-900/10 rounded-r-xl rounded-bl-xl shadow-[0_0_10px_rgba(0,198,0,0.1)]'
                             }`}>
-                                <p className="whitespace-pre-wrap text-sm md:text-base">{msg.text}</p>
-                                {/* Decorate corners */}
-                                <div className="absolute top-0 left-0 w-1 h-1 bg-current opacity-50"></div>
-                                <div className="absolute bottom-0 right-0 w-1 h-1 bg-current opacity-50"></div>
+                                <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">{msg.text}</p>
                             </div>
                             {msg.role === 'user' && <User className="shrink-0 mt-1" size={20} />}
                         </div>
