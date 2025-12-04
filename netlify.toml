@@ -1,5 +1,5 @@
-[build] command = "npm run build" publish = "dist" base = "/"
+[build] command = "npm run build" publish = "dist"
 
 [build.environment] NODE_VERSION = "18"
 
-[[redirects]] from = "/*" to = "/index.html" status = 200 force = true
+Redirects for a single-page app (add to netlify.toml or add a file named _redirects in public): [[redirects]] from = "/*" to = "/index.html" status = 200
