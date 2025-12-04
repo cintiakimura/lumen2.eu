@@ -6,7 +6,6 @@ import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 import { getMessaging } from "firebase/messaging";
 
-// Safe environment variable access
 const getEnv = () => {
   try {
     return (import.meta as any).env || {};
@@ -33,7 +32,7 @@ let storageInstance = null;
 let messagingInstance = null;
 
 try {
-    if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "AIzaSyC_dq9Jg4Atq6j28_kdRkh_1LyAIZ3Ethg") {
+    if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "undefined") {
         app = initializeApp(firebaseConfig);
         dbInstance = getFirestore(app);
         authInstance = getAuth(app);
@@ -47,7 +46,7 @@ try {
             }
         }
     } else {
-        console.warn("Using Mock/Offline Mode (Invalid or Default API Key detected)");
+        console.warn("Firebase Config missing API Key. App will run in Offline Mode.");
     }
 } catch (e) {
     console.error("Firebase Initialization Error:", e);

@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 
 let client: GoogleGenAI | null = null;
@@ -13,6 +14,20 @@ try {
 } catch (e) {
   console.warn("Error initializing Gemini client:", e);
 }
+
+export const checkGeminiConnection = async (): Promise<boolean> => {
+    if (!client) return false;
+    try {
+        // Run a lightweight model op to verify key
+        await client.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: 'ping',
+        });
+        return true;
+    } catch (e) {
+        return false;
+    }
+};
 
 export const sendMessageToGemini = async (history: { role: 'user' | 'model'; text: string }[], newMessage: string): Promise<string> => {
   if (!client) return "Demo Mode: API Key missing. Unable to connect to Lumen Core.";
@@ -45,7 +60,7 @@ export const gradeSubmissionAI = async (task: string, response: string): Promise
             resolve({
                 score: 85,
                 feedback: {
-                    overall: "Solid understanding of the core concept.",
+                    overall: "Solid understanding of the core concept (Demo Mode).",
                     criteria: [
                         { name: "Accuracy", score: 90, explanation: "Calculation is correct." },
                         { name: "Method", score: 80, explanation: "Steps were logical but could be more concise." }

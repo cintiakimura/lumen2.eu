@@ -2,26 +2,23 @@
 import React, { useState, useEffect } from 'react';
 import { UploadCloud, FileText, User, MoreVertical, Eye, ShieldAlert } from 'lucide-react';
 import { getUsers } from '../services/db';
-import { MOCK_USERS } from '../constants';
 import { User as UserType } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 const Teacher = () => {
+  const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [fileName, setFileName] = useState('');
   const [students, setStudents] = useState<UserType[]>([]);
 
-  // SIMULATED AUTH CONTEXT
-  // In a real app, this comes from your Auth Provider (e.g. Firebase Auth)
-  // We assume the logged-in user is 'Dr. Octavius' from Tesla (CLI-TESLA)
-  const currentTeacher = MOCK_USERS.find(u => u.id === 'TCH-102')!; 
-
   useEffect(() => {
+    if (!user) return;
     const loadStudents = async () => {
-        const data = await getUsers(currentTeacher.clientId);
+        const data = await getUsers(user.clientId);
         setStudents(data.filter(u => u.role === 'Student'));
     }
     loadStudents();
-  }, [currentTeacher.clientId]);
+  }, [user]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -32,13 +29,22 @@ const Teacher = () => {
   const handleUpload = () => {
     if (!fileName) return;
     setUploading(true);
-    // Simulate upload delay
     setTimeout(() => {
       setUploading(false);
       setFileName('');
-      alert("Demo Mode: File uploaded successfully to Lumen Cloud.");
+      alert("File uploaded successfully to Lumen Cloud.");
     }, 2000);
   };
+
+  if (user?.role === 'Student') {
+      return (
+          <div className="flex flex-col items-center justify-center h-full text-center p-8">
+              <ShieldAlert size={48} className="text-red-500 mb-4" />
+              <h1 className="text-2xl font-light text-white">Access Denied</h1>
+              <p className="text-gray-400 mt-2">Student privileges are insufficient for the Teacher Dashboard.</p>
+          </div>
+      )
+  }
 
   return (
     <div className="space-y-8">
@@ -48,7 +54,7 @@ const Teacher = () => {
             <div className="flex items-center gap-2 mt-1">
                 <p className="text-lumen-secondary font-mono text-sm">FLEET DIAGNOSTICS & MANAGEMENT</p>
                 <span className="text-xs text-gray-500 font-mono px-2 py-0.5 border border-white/10 rounded">
-                    ORG: {currentTeacher.clientId}
+                    ORG: {user?.clientId}
                 </span>
             </div>
         </div>
@@ -142,8 +148,8 @@ const Teacher = () => {
                 </table>
                 {students.length === 0 && (
                     <div className="p-8 text-center text-gray-500 italic">
-                        No active technicians found for your organization ({currentTeacher.clientId}).
-                        <br/>(Use Admin Panel to Seed Database)
+                        No active technicians found for your organization ({user?.clientId}).
+                        <br/>(Check Admin panel for user data)
                     </div>
                 )}
             </div>

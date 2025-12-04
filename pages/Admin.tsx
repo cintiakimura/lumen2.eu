@@ -13,14 +13,19 @@ import {
   Lock,
   Globe,
   ArrowLeft,
-  Database
+  Database,
+  Activity,
+  Server,
+  Cpu,
+  HardDrive
 } from 'lucide-react';
 import { Client, User, Unit, UserRole } from '../types';
-import { getClients, getUsers, getCourses, createClient, createUser, createCourse, createTask } from '../services/db';
+import { getClients, getUsers, getCourses, createClient, createUser, createCourse, createTask, checkDBConnection, checkStorageConnection } from '../services/db';
+import { checkGeminiConnection } from '../services/geminiService';
 import { MOCK_CLIENTS, MOCK_USERS, MOCK_UNITS } from '../constants';
 import toast from 'react-hot-toast';
 
-type AdminTab = 'clients' | 'users' | 'courses';
+type AdminTab = 'clients' | 'users' | 'courses' | 'diagnostics';
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>('clients');
@@ -34,13 +39,23 @@ const Admin = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [courses, setCourses] = useState<Unit[]>([]);
 
+  // Diagnostic State
+  const [diagResults, setDiagResults] = useState<any>({
+      db: 'pending',
+      storage: 'pending',
+      ai: 'pending',
+      latency: 0
+  });
+
   // Form State
   const [newItemName, setNewItemName] = useState('');
   const [newItemRole, setNewItemRole] = useState<UserRole>('Student');
   const [newItemClientId, setNewItemClientId] = useState<string>('');
 
   useEffect(() => {
-    loadData();
+    if (activeTab !== 'diagnostics') {
+        loadData();
+    }
   }, [selectedClient, activeTab]);
 
   const loadData = async () => {
@@ -61,6 +76,25 @@ const Admin = () => {
     } finally {
         setLoading(false);
     }
+  };
+
+  const runDiagnostics = async () => {
+      setDiagResults({ db: 'running', storage: 'running', ai: 'running', latency: 0 });
+      const start = Date.now();
+      
+      // Parallel checks
+      const [dbStatus, storageStatus, aiStatus] = await Promise.all([
+          checkDBConnection(),
+          checkStorageConnection(),
+          checkGeminiConnection()
+      ]);
+      
+      setDiagResults({
+          db: dbStatus ? 'connected' : 'offline',
+          storage: storageStatus ? 'connected' : 'offline',
+          ai: aiStatus ? 'connected' : 'offline',
+          latency: Date.now() - start
+      });
   };
 
   // Filter Data based on isolation rules & Search
@@ -190,66 +224,146 @@ const Admin = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-white/10">
+      <div className="flex border-b border-white/10 overflow-x-auto">
         <TabButton id="clients" label="Client Organizations" icon={Building2} />
         <TabButton id="users" label="User Management" icon={Users} />
         <TabButton id="courses" label="Course Registry" icon={BookOpen} />
+        <TabButton id="diagnostics" label="System Diagnostics" icon={Activity} />
       </div>
 
       {/* Toolbar */}
       <div className="bg-lumen-surface/60 backdrop-blur-xl border border-white/5 rounded-b-2xl rounded-tr-2xl p-6 min-h-[500px]">
-        <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-4">
-                {selectedClient && (
+        {activeTab !== 'diagnostics' && (
+            <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-4">
+                    {selectedClient && (
+                        <button 
+                            onClick={() => setSelectedClient(null)} 
+                            className="p-2 hover:bg-white/10 rounded-full text-white transition-colors"
+                            title="Back to Global View"
+                        >
+                            <ArrowLeft size={20} />
+                        </button>
+                    )}
+                    
+                    <div className="relative w-72">
+                        <Search size={18} className="absolute left-3 top-3 text-gray-500" />
+                        <input 
+                            type="text" 
+                            placeholder={`Search ${activeTab}...`} 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-black/40 border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white focus:border-lumen-primary/50 focus:outline-none transition-colors"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex gap-3">
+                    {/* Isolation Indicator */}
+                    {selectedClient ? (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-lumen-primary/10 border border-lumen-primary/30 rounded-lg">
+                            <Lock size={14} className="text-lumen-primary" />
+                            <span className="text-xs font-mono text-lumen-primary">DATA ISOLATION: {selectedClient.id}</span>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/50 border border-white/10 rounded-lg">
+                            <Globe size={14} className="text-gray-400" />
+                            <span className="text-xs font-mono text-gray-400">GLOBAL VIEW</span>
+                        </div>
+                    )}
+
                     <button 
-                        onClick={() => setSelectedClient(null)} 
-                        className="p-2 hover:bg-white/10 rounded-full text-white transition-colors"
-                        title="Back to Global View"
+                        onClick={() => setShowModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-lumen-primary text-black font-bold rounded-lg hover:bg-lumen-highlight transition-all shadow-glow hover:scale-105"
                     >
-                        <ArrowLeft size={20} />
+                        <Plus size={18} />
+                        <span>Add {activeTab === 'clients' ? 'Client' : activeTab === 'users' ? 'User' : 'Course'}</span>
                     </button>
-                )}
-                
-                <div className="relative w-72">
-                    <Search size={18} className="absolute left-3 top-3 text-gray-500" />
-                    <input 
-                        type="text" 
-                        placeholder={`Search ${activeTab}...`} 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-black/40 border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white focus:border-lumen-primary/50 focus:outline-none transition-colors"
-                    />
                 </div>
             </div>
-
-            <div className="flex gap-3">
-                 {/* Isolation Indicator */}
-                 {selectedClient ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-lumen-primary/10 border border-lumen-primary/30 rounded-lg">
-                        <Lock size={14} className="text-lumen-primary" />
-                        <span className="text-xs font-mono text-lumen-primary">DATA ISOLATION: {selectedClient.id}</span>
-                    </div>
-                 ) : (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/50 border border-white/10 rounded-lg">
-                        <Globe size={14} className="text-gray-400" />
-                        <span className="text-xs font-mono text-gray-400">GLOBAL VIEW</span>
-                    </div>
-                 )}
-
-                <button 
-                    onClick={() => setShowModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-lumen-primary text-black font-bold rounded-lg hover:bg-lumen-highlight transition-all shadow-glow hover:scale-105"
-                >
-                    <Plus size={18} />
-                    <span>Add {activeTab === 'clients' ? 'Client' : activeTab === 'users' ? 'User' : 'Course'}</span>
-                </button>
-            </div>
-        </div>
+        )}
 
         {/* CONTENT AREA */}
-        {loading && (
+        {loading && activeTab !== 'diagnostics' && (
             <div className="p-8 text-center text-lumen-primary animate-pulse">
                 Loading Data from Firestore...
+            </div>
+        )}
+
+        {/* DIAGNOSTICS VIEW */}
+        {activeTab === 'diagnostics' && (
+            <div className="max-w-4xl mx-auto animate-in fade-in">
+                <div className="text-center mb-8">
+                    <button 
+                        onClick={runDiagnostics}
+                        className="px-8 py-3 bg-lumen-primary text-black font-bold rounded-full hover:bg-lumen-highlight transition-all shadow-glow flex items-center gap-2 mx-auto"
+                    >
+                        <Activity size={20} />
+                        RUN SYSTEM TEST
+                    </button>
+                    {diagResults.latency > 0 && (
+                        <p className="mt-4 text-xs font-mono text-gray-500">Test Duration: {diagResults.latency}ms</p>
+                    )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* DB Status */}
+                    <div className={`p-6 rounded-xl border flex flex-col items-center justify-center text-center gap-4 ${
+                        diagResults.db === 'connected' ? 'bg-green-500/10 border-green-500/30' : 
+                        diagResults.db === 'offline' ? 'bg-red-500/10 border-red-500/30' : 'bg-black/20 border-white/10'
+                    }`}>
+                        <div className={`p-3 rounded-full ${diagResults.db === 'connected' ? 'bg-green-500 text-black' : 'bg-gray-800 text-gray-400'}`}>
+                            <Server size={32} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-white">Firestore DB</h3>
+                            <p className="text-sm font-mono mt-1 uppercase">
+                                {diagResults.db === 'running' ? 'CHECKING...' : diagResults.db}
+                            </p>
+                        </div>
+                        {diagResults.db === 'offline' && (
+                            <p className="text-xs text-red-400 px-4">Check Firebase Config & API Key. Using local mock data.</p>
+                        )}
+                    </div>
+
+                    {/* Storage Status */}
+                    <div className={`p-6 rounded-xl border flex flex-col items-center justify-center text-center gap-4 ${
+                        diagResults.storage === 'connected' ? 'bg-green-500/10 border-green-500/30' : 
+                        diagResults.storage === 'offline' ? 'bg-red-500/10 border-red-500/30' : 'bg-black/20 border-white/10'
+                    }`}>
+                        <div className={`p-3 rounded-full ${diagResults.storage === 'connected' ? 'bg-green-500 text-black' : 'bg-gray-800 text-gray-400'}`}>
+                            <HardDrive size={32} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-white">Storage Bucket</h3>
+                            <p className="text-sm font-mono mt-1 uppercase">
+                                {diagResults.storage === 'running' ? 'CHECKING...' : diagResults.storage}
+                            </p>
+                        </div>
+                        {diagResults.storage === 'offline' && (
+                            <p className="text-xs text-red-400 px-4">Bucket inaccessible or permissions denied.</p>
+                        )}
+                    </div>
+
+                    {/* AI Status */}
+                    <div className={`p-6 rounded-xl border flex flex-col items-center justify-center text-center gap-4 ${
+                        diagResults.ai === 'connected' ? 'bg-green-500/10 border-green-500/30' : 
+                        diagResults.ai === 'offline' ? 'bg-red-500/10 border-red-500/30' : 'bg-black/20 border-white/10'
+                    }`}>
+                        <div className={`p-3 rounded-full ${diagResults.ai === 'connected' ? 'bg-green-500 text-black' : 'bg-gray-800 text-gray-400'}`}>
+                            <Cpu size={32} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-white">Gemini AI</h3>
+                            <p className="text-sm font-mono mt-1 uppercase">
+                                {diagResults.ai === 'running' ? 'CHECKING...' : diagResults.ai}
+                            </p>
+                        </div>
+                        {diagResults.ai === 'offline' && (
+                            <p className="text-xs text-red-400 px-4">API Key missing or invalid. AI features disabled.</p>
+                        )}
+                    </div>
+                </div>
             </div>
         )}
 
@@ -286,7 +400,7 @@ const Admin = () => {
         )}
 
         {/* USERS VIEW */}
-        {(activeTab === 'users' || selectedClient) && activeTab !== 'clients' && activeTab !== 'courses' && !loading && (
+        {(activeTab === 'users' || selectedClient) && activeTab !== 'clients' && activeTab !== 'courses' && activeTab !== 'diagnostics' && !loading && (
             <div className="overflow-x-auto animate-in fade-in">
                 <table className="w-full text-left border-collapse">
                     <thead>

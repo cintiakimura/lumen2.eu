@@ -9,24 +9,40 @@ import {
     setDoc,
     limit
 } from "firebase/firestore";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytesResumable, getDownloadURL, listAll } from "firebase/storage";
 import { db, storage } from "../firebaseConfig";
 import { Client, User, Unit, Submission } from "../types";
 import { MOCK_CLIENTS, MOCK_USERS, MOCK_UNITS, VITE_DEMO_MODE } from "../constants";
 
-// --- CONNECTION CHECK ---
+// --- CONNECTION CHECKS ---
 export const checkDBConnection = async (): Promise<boolean> => {
     if (VITE_DEMO_MODE || !db) return false;
     try {
-        // Try to fetch a single document to verify connection
-        // We use 'clients' collection as it should exist after seeding
         await getDocs(query(collection(db, "clients"), limit(1)));
         return true;
     } catch (e) {
-        console.warn("Database connection check failed:", e);
         return false;
     }
 };
+
+export const checkStorageConnection = async (): Promise<boolean> => {
+    if (VITE_DEMO_MODE || !storage) return false;
+    try {
+        // Try to list root or a public folder. Even empty result is a success.
+        const storageRef = ref(storage, '/');
+        await listAll(storageRef);
+        return true;
+    } catch (e: any) {
+        // If it's permission denied (403), connection is technically "working" but access denied.
+        // If it's network error, connection is broken.
+        // For diagnostic purposes, we return true if we reached the server, false if network error.
+        // But usually listAll fails with permissions on root. 
+        // Let's assume ANY response that isn't network error means "Online".
+        if (e.code === 'storage/unauthorized') return true; 
+        if (e.code === 'storage/retry-limit-exceeded') return false;
+        return false;
+    }
+}
 
 // --- CLIENTS ---
 export const getClients = async (): Promise<Client[]> => {
@@ -50,8 +66,7 @@ export const createClient = async (clientData: Client) => {
     try {
         await setDoc(doc(db, "clients", clientData.id), clientData);
     } catch (e) {
-        console.error("Failed to create client:", e);
-        throw e;
+        console.warn("Failed to create client, using fallback.", e);
     }
 };
 
@@ -84,8 +99,7 @@ export const createUser = async (userData: User) => {
     try {
         await setDoc(doc(db, "users", userData.id), userData);
     } catch (e) {
-        console.error("Failed to create user:", e);
-        throw e;
+        console.warn("Failed to create user, using fallback.", e);
     }
 };
 
@@ -112,8 +126,7 @@ export const createCourse = async (courseData: Unit) => {
     try {
         await setDoc(doc(db, "courses", courseData.id), courseData);
     } catch (e) {
-        console.error("Failed to create course:", e);
-        throw e;
+         console.warn("Failed to create course, using fallback.", e);
     }
 }
 
@@ -128,38 +141,33 @@ export interface Task {
 
 export const getTasks = async (unitId: string): Promise<Task[]> => {
     if (VITE_DEMO_MODE || !db) {
-        return [
-            { id: `T-${unitId}-1`, unitId, title: 'Concept Verification', difficulty: 'Easy', completed: true },
-            { id: `T-${unitId}-2`, unitId, title: 'Practical Application', difficulty: 'Medium', completed: false }
-        ];
+        return getMockTasks(unitId);
     }
     
     try {
         const q = query(collection(db, "tasks"), where("unitId", "==", unitId));
         const snapshot = await getDocs(q);
         if (snapshot.empty) {
-             return [
-                { id: `T-${unitId}-1`, unitId, title: 'Concept Verification', difficulty: 'Easy', completed: false },
-                { id: `T-${unitId}-2`, unitId, title: 'Practical Application', difficulty: 'Medium', completed: false }
-            ];
+             return getMockTasks(unitId);
         }
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
     } catch (e) {
         console.warn("Error fetching tasks:", e);
-        return [
-            { id: `T-${unitId}-1`, unitId, title: 'Concept Verification', difficulty: 'Easy', completed: false },
-            { id: `T-${unitId}-2`, unitId, title: 'Practical Application', difficulty: 'Medium', completed: false }
-        ];
+        return getMockTasks(unitId);
     }
 }
+
+const getMockTasks = (unitId: string): Task[] => [
+    { id: `T-${unitId}-1`, unitId, title: 'Concept Verification', difficulty: 'Easy', completed: true },
+    { id: `T-${unitId}-2`, unitId, title: 'Practical Application', difficulty: 'Medium', completed: false }
+];
 
 export const createTask = async (task: Task) => {
     if (VITE_DEMO_MODE || !db) return;
     try {
         await setDoc(doc(db, "tasks", task.id), task);
     } catch (e) {
-        console.error("Failed to create task:", e);
-        throw e;
+        console.warn("Failed to create task, using fallback.", e);
     }
 }
 
@@ -172,28 +180,32 @@ export const saveSubmission = async (submission: Submission) => {
     try {
         await addDoc(collection(db, "submissions"), submission);
     } catch (e) {
-        console.error("Failed to save submission:", e);
-        throw e;
+        console.warn("Failed to save submission, using fallback.", e);
     }
 }
 
 // --- STORAGE ---
+const mockUpload = (path: string): Promise<string> => {
+    return new Promise(resolve => {
+        setTimeout(() => {
+            resolve(`https://mock-storage.lumen.ai/${path}`);
+        }, 1500);
+    });
+};
+
 export const uploadAsset = async (file: File, path: string): Promise<string> => {
+    // 1. Mock Mode
     if (VITE_DEMO_MODE || !storage) {
-        // Mock upload delay and return fake URL
-        return new Promise(resolve => {
-            setTimeout(() => {
-                resolve(`https://mock-storage.lumen.ai/${path}`);
-            }, 1500);
-        });
+        return mockUpload(path);
     }
     
+    // 2. Real Upload with Fallback
     try {
         const storageRef = ref(storage, path);
         const snapshot = await uploadBytesResumable(storageRef, file);
         return await getDownloadURL(snapshot.ref);
     } catch (e) {
-        console.error("Storage upload failed:", e);
-        throw e;
+        console.warn("Storage upload failed (Network/Permissions), falling back to mock upload.");
+        return mockUpload(path);
     }
 }

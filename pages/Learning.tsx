@@ -1,18 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
-import { Play, RotateCcw, Send, CheckCircle, AlertTriangle, Lock, BookOpen, ChevronRight, Hash, Terminal } from 'lucide-react';
+import { RotateCcw, Send, CheckCircle, AlertTriangle, Lock, BookOpen, ChevronRight, Hash, Terminal } from 'lucide-react';
 import { gradeSubmissionAI } from '../services/geminiService';
 import { getCourses, getTasks, saveSubmission, Task } from '../services/db';
 import { Grade, Unit, Submission } from '../types';
-import { MOCK_USERS } from '../constants';
+import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const Learning = () => {
-  // SIMULATED AUTH CONTEXT
-  // We assume the logged-in student is 'Alex Rivera' from Tesla (CLI-TESLA)
-  // Switch this ID in constants.ts to 'OP-443' (SpaceX) to see different courses
-  const currentStudent = MOCK_USERS.find(u => u.id === 'OP-442')!;
-
+  const { user } = useAuth();
+  
   // Data State
   const [units, setUnits] = useState<Unit[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -26,13 +23,14 @@ const Learning = () => {
 
   // Load Units on Mount
   useEffect(() => {
+      if (!user) return;
       const loadUnits = async () => {
-          const data = await getCourses(currentStudent.clientId);
+          const data = await getCourses(user.clientId);
           setUnits(data);
           if (data.length > 0) setActiveUnitId(data[0].id);
       };
       loadUnits();
-  }, [currentStudent.clientId]);
+  }, [user]);
 
   // Load Tasks when Unit Changes
   useEffect(() => {
@@ -50,7 +48,7 @@ const Learning = () => {
   const activeTask = tasks.find(t => t.id === activeTaskId);
 
   const handleSubmit = async () => {
-    if (!response.trim() || !activeTask) return;
+    if (!response.trim() || !activeTask || !user) return;
     setLoading(true);
     setGrade(null);
 
@@ -61,12 +59,12 @@ const Learning = () => {
         // Save to DB
         const submission: Submission = {
             submission_id: `SUB-${Date.now()}`,
-            user_id: currentStudent.id,
-            clientId: currentStudent.clientId,
+            user_id: user.id,
+            clientId: user.clientId,
             unit_id: activeUnitId,
             task_id: activeTaskId,
             response: response,
-            started_at: Date.now() - 300000, // mock start time
+            started_at: Date.now() - 300000, 
             submitted_at: Date.now(),
             time_sec: 300,
             grade: result
@@ -90,11 +88,11 @@ const Learning = () => {
              <h2 className="text-xs font-mono text-lumen-secondary tracking-widest uppercase flex items-center gap-2">
                 <BookOpen size={14} /> Training Modules
              </h2>
-             <span className="text-[10px] text-gray-500 font-mono mt-1 block">Context: {currentStudent.clientId}</span>
+             <span className="text-[10px] text-gray-500 font-mono mt-1 block">Context: {user?.clientId}</span>
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-white/10">
             {units.length === 0 && (
-                <div className="p-4 text-xs text-gray-500">No courses loaded. Check Admin to Seed DB.</div>
+                <div className="p-4 text-xs text-gray-500">No courses loaded for this organization.</div>
             )}
             {units.map(unit => (
                 <button
@@ -221,7 +219,6 @@ const Learning = () => {
                             {activeTask.title}
                         </h3>
                         <p className="text-gray-400 mb-6 font-mono text-sm border-l-2 border-lumen-secondary pl-3">
-                            {/* In a real app, this prompt comes from the DB */}
                             Analyze the scenario and provide a technical solution. Be specific about safety protocols.
                         </p>
 
