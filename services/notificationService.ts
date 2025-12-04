@@ -1,4 +1,5 @@
 
+
 import { getToken, onMessage } from "firebase/messaging";
 import { messaging, VAPID_KEY } from "../firebaseConfig";
 
@@ -29,8 +30,17 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
 
 export const onMessageListener = () =>
   new Promise((resolve) => {
-    if (!messaging) return;
-    onMessage(messaging, (payload) => {
-      resolve(payload);
-    });
+    if (!messaging) {
+        // Resolve immediately to prevent hanging promise errors if messaging isn't available
+        resolve(null);
+        return;
+    }
+    try {
+        onMessage(messaging, (payload) => {
+            resolve(payload);
+        });
+    } catch (e) {
+        console.warn("Messaging listener failed:", e);
+        resolve(null);
+    }
   });
