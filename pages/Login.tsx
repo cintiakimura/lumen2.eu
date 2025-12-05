@@ -2,9 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Loader2, ShieldCheck, ChevronRight, User, Terminal, Briefcase, Building2 } from 'lucide-react';
+import { Loader2, ShieldCheck, ChevronRight, User, Terminal, Briefcase, Building2, Lightbulb } from 'lucide-react';
 import { MOCK_USERS } from '../constants';
 import { UserRole } from '../types';
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from '../firebaseConfig';
 
 const Login = () => {
   const { login, signup, loading, user } = useAuth();
@@ -50,6 +52,38 @@ const Login = () => {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+      if (!auth) {
+          setError("Auth service unavailable (Offline Mode)");
+          return;
+      }
+      try {
+          const provider = new GoogleAuthProvider();
+          // Force account selection
+          provider.setCustomParameters({
+            prompt: 'select_account'
+          });
+          const result = await signInWithPopup(auth, provider);
+          const gUser = result.user;
+          
+          if (gUser.email) {
+              // Try to login with this email
+              const success = await login(gUser.email);
+              if (!success) {
+                  // If not found, pre-fill registration or auto-register depending on policy
+                  // For now, let's switch to register mode and pre-fill
+                  setIsLogin(false);
+                  setEmail(gUser.email);
+                  setName(gUser.displayName || '');
+                  setError('Google account verified. Please complete registration details.');
+              }
+          }
+      } catch (error: any) {
+          console.error("Google Sign In Error", error);
+          setError("Google Sign-In failed: " + error.message);
+      }
+  };
+
   const handleDemoSelect = (demoEmail: string) => {
     setEmail(demoEmail);
     setIsLogin(true);
@@ -76,10 +110,7 @@ const Login = () => {
         {/* Logo Area */}
         <div className="text-center mb-10">
            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-lumen-primary/20 to-lumen-secondary/20 border border-white/10 mb-6 shadow-glow-sm">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8 text-lumen-primary">
-                <path d="M12 2C7.03 2 3 6.03 3 11c0 3.3 1.8 6.18 4.55 7.74.8.46 1.45 1.5 1.45 2.66V22h6v-.6c0-1.16.65-2.2 1.45-2.66C19.2 17.18 21 14.3 21 11c0-4.97-4.03-9-9-9z" />
-                <path d="M12 14c-2.5 0-4-1.5-4-3.5S9.5 7 12 7s4 1.5 4 3.5-1.5 3.5-4 3.5z" />
-              </svg>
+              <Lightbulb className="w-8 h-8 text-lumen-primary" strokeWidth={1.5} />
            </div>
            <h1 className="text-3xl font-light tracking-wide text-white">LUMEN <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-lumen-primary to-lumen-secondary">ACCESS</span></h1>
            <p className="text-xs font-mono text-lumen-secondary mt-2 tracking-[0.2em]">IDENTITY VERIFICATION PROTOCOL</p>
@@ -194,6 +225,15 @@ const Login = () => {
               {loading ? <Loader2 size={18} className="animate-spin" /> : (isLogin ? <User size={18} /> : <ShieldCheck size={18} />)}
               {loading ? 'PROCESSING...' : (isLogin ? 'INITIALIZE SESSION' : 'CREATE IDENTITY')}
             </button>
+
+            <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                className="w-full py-3 bg-black/40 border border-white/10 text-white font-bold rounded-xl hover:bg-white/5 transition-all flex items-center justify-center gap-2 mt-4"
+            >
+                <ShieldCheck size={18} className="text-white" /> Sign in with Google
+            </button>
+
           </form>
 
           <div className="mt-8 pt-6 border-t border-white/5 text-center">

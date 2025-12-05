@@ -20,7 +20,8 @@ import {
   WifiOff,
   LogOut,
   Zap,
-  Award
+  Award,
+  Lightbulb
 } from 'lucide-react';
 import { requestNotificationPermission, onMessageListener } from '../services/notificationService';
 import { checkDBConnection } from '../services/db';
@@ -37,23 +38,7 @@ interface SidebarItemProps {
 
 // Custom Logo Component
 const LumenLogo = ({ className }: { className?: string }) => (
-  <svg 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="1.5" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path d="M9 18h6" />
-    <path d="M10 22h4" />
-    <path d="M12 2C7.03 2 3 6.03 3 11c0 3.3 1.8 6.18 4.55 7.74.8.46 1.45 1.5 1.45 2.66V22h6v-.6c0-1.16.65-2.2 1.45-2.66C19.2 17.18 21 14.3 21 11c0-4.97-4.03-9-9-9z" />
-    <path d="M12 14c-2.5 0-4-1.5-4-3.5S9.5 7 12 7s4 1.5 4 3.5-1.5 3.5-4 3.5z" />
-    <path d="M12 7v7" />
-    <path d="M9.5 9a2.5 2.5 0 0 0 5 0" />
-  </svg>
+  <Lightbulb className={className} strokeWidth={1.5} />
 );
 
 const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon: Icon, label, collapsed }) => (
