@@ -24,12 +24,15 @@ const getEnv = () => {
 
 const env = getEnv();
 
+// Updated Config for Project: lumen20-88e2c
 const firebaseConfig = {
-  apiKey: env.VITE_FIREBASE_API_KEY || "AIzaSyDJADf2UKQzNB_OiR6WYiUT0WSYS3VoQno",
-  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || "lumen-academy.firebaseapp.com",
-  projectId: env.VITE_FIREBASE_PROJECT_ID || "lumen-academy",
-  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || "lumen-academy.firebasestorage.app",
-  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || "914900569220",
+  // IMPORTANT: The API Key must be provided via the VITE_FIREBASE_API_KEY environment variable.
+  // The previous hardcoded key was invalid for this project.
+  apiKey: env.VITE_FIREBASE_API_KEY, 
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || "lumen20-88e2c.firebaseapp.com",
+  projectId: env.VITE_FIREBASE_PROJECT_ID || "lumen20-88e2c",
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || "lumen20-88e2c.firebasestorage.app",
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1009890099306",
   appId: env.VITE_FIREBASE_APP_ID
 };
 
@@ -46,7 +49,7 @@ try {
         authInstance = getAuth(app);
         storageInstance = getStorage(app);
         
-        if (firebaseConfig.appId && firebaseConfig.messagingSenderId) {
+        if (firebaseConfig.appId || firebaseConfig.messagingSenderId) {
             try {
                 messagingInstance = getMessaging(app);
             } catch (e) {
@@ -54,7 +57,7 @@ try {
             }
         }
     } else {
-        console.warn("Firebase Config missing API Key. App will run in Offline Mode.");
+        console.warn("Firebase Config missing API Key. App will run in Offline Mode (Demo).");
     }
 } catch (e) {
     console.error("Firebase Initialization Error:", e);
