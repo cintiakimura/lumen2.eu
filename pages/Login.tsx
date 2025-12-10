@@ -59,10 +59,10 @@ const Login = () => {
       }
       try {
           const provider = new GoogleAuthProvider();
-          // Force account selection
           provider.setCustomParameters({
             prompt: 'select_account'
           });
+          
           const result = await signInWithPopup(auth, provider);
           const gUser = result.user;
           
@@ -71,7 +71,6 @@ const Login = () => {
               const success = await login(gUser.email);
               if (!success) {
                   // If not found, pre-fill registration or auto-register depending on policy
-                  // For now, let's switch to register mode and pre-fill
                   setIsLogin(false);
                   setEmail(gUser.email);
                   setName(gUser.displayName || '');
