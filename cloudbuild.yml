@@ -1,0 +1,65 @@
+steps:
+  # Step 1: Build the Docker image
+  # This uses the Dockerfile in your repository to build the image.
+  # The image is tagged with the project ID and the commit SHA for uniqueness.
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/${PROJECT_ID}/lumen-app:${COMMIT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/lumen-app:latest', '.']
+
+  # Step 2: Push the Docker image to Google Container Registry
+  # This makes the image available for deployment to Cloud Run.
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/${PROJECT_ID}/lumen-app:${COMMIT_SHA}']
+
+  # Step 3: Deploy the image to Cloud Run
+  # This command deploys the newly built and pushed Docker image to your Cloud Run service.
+  # Environment variables are set during deployment.
+  # Adjust the service name, region, and memory as needed.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'web-app-frontend-service'
+      - '--image'
+      - 'gcr.io/${PROJECT_ID}/lumen-app:${COMMIT_SHA}'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '512Mi'
+      - '--cpu'
+      - '1'
+      - '--timeout'
+      - '900'
+      - '--max-instances'
+      - '100'
+      - '--min-instances'
+      - '1'
+      - '--project'
+      - '${PROJECT_ID}'
+      # Set environment variables for Cloud Run
+      # NOTE: Update these with your actual values or set them via Cloud Run UI/Secret Manager
+      - '--set-env-vars'
+      - 'NODE_ENV=production,VITE_APP_ENV=production'
+
+# Specifies the images that are built and pushed by this Cloud Build configuration.
+images:
+  - 'gcr.io/${PROJECT_ID}/lumen-app:${COMMIT_SHA}'
+  - 'gcr.io/${PROJECT_ID}/lumen-app:latest'
+
+# Build options
+options:
+  machineType: 'N1_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+
+# Timeout for the entire build
+timeout: '1800s'
+
+# Substitutions for dynamic values
+substitutions:
+  _SERVICE_ACCOUNT: 'cloud-run-deployer@${PROJECT_ID}.iam.gserviceaccount.com'
+
+onFailure:
+  - LOG
