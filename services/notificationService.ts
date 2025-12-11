@@ -27,7 +27,6 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
   return null;
 };
 
-// Refactored to use callback pattern to prevent "Async response channel closed" errors
 export const onMessageListener = (callback: (payload: any) => void) => {
   if (!messaging) return;
   try {

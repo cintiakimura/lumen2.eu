@@ -1,6 +1,8 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Terminal, Sparkles, User, Bot, Activity } from 'lucide-react';
-import { sendMessageToGemini } from '../services/geminiService';
+import { Send, Terminal, Sparkles, User, Bot, Activity, CheckCircle, XCircle, Database, Server, Cpu } from 'lucide-react';
+import { sendMessageToGemini, checkGeminiConnection } from '../services/geminiService';
+import { checkDBConnection, checkStorageConnection } from '../services/db';
 import { ChatMessage } from '../types';
 
 const Command = () => {
@@ -16,25 +18,44 @@ const Command = () => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const runDiagnostics = async () => {
-    setLoading(true);
-    const steps = [
-      "Initiating self-test protocol...",
-      "Verifying Visual Modules... [OK]",
-      "Checking Neural Uplink... [OK]",
-      "Validating Branding Assets: 'Lumen Academy'... [VERIFIED]",
-      "Diagnostics complete. System Health: 100%"
-    ];
-
-    for (const step of steps) {
-      await new Promise(r => setTimeout(r, 600));
+  const addSystemMessage = (text: string) => {
       setMessages(prev => [...prev, { 
-        id: Date.now().toString(), 
+        id: Date.now().toString() + Math.random(), 
         role: 'model', 
-        text: step, 
+        text, 
         timestamp: Date.now() 
       }]);
-    }
+  };
+
+  const runDiagnostics = async () => {
+    setLoading(true);
+    addSystemMessage("Initiating system-wide diagnostic scan...");
+    
+    // Artificial delay for "processing" feel
+    await new Promise(r => setTimeout(r, 600));
+
+    // 1. Database Check
+    const dbStatus = await checkDBConnection();
+    addSystemMessage(`[1/3] Checking Firestore Database... ${dbStatus ? '[ONLINE]' : '[OFFLINE / LOCAL MODE]'}`);
+    await new Promise(r => setTimeout(r, 400));
+
+    // 2. Storage Check
+    const storageStatus = await checkStorageConnection();
+    addSystemMessage(`[2/3] Verifying Asset Storage... ${storageStatus ? '[ONLINE]' : '[OFFLINE / RESTRICTED]'}`);
+    await new Promise(r => setTimeout(r, 400));
+
+    // 3. AI Check
+    const aiStatus = await checkGeminiConnection();
+    addSystemMessage(`[3/3] Pinging Neural Core (Gemini)... ${aiStatus ? '[CONNECTED]' : '[DISCONNECTED]'}`);
+    
+    await new Promise(r => setTimeout(r, 600));
+
+    const allGood = dbStatus && storageStatus && aiStatus;
+    const summary = allGood 
+        ? "Diagnostics complete. All systems functioning within normal parameters."
+        : "Diagnostics complete. System warnings detected. Some features may be degraded.";
+    
+    addSystemMessage(summary);
     setLoading(false);
   };
 
@@ -43,8 +64,7 @@ const Command = () => {
 
     // Intercept specific command for diagnostics
     if (input.toLowerCase() === 'run diagnostics' || input.toLowerCase() === 'system check') {
-        const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: input, timestamp: Date.now() };
-        setMessages(prev => [...prev, userMsg]);
+        setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', text: input, timestamp: Date.now() }]);
         setInput('');
         await runDiagnostics();
         return;
@@ -55,18 +75,21 @@ const Command = () => {
     setInput('');
     setLoading(true);
 
-    const responseText = await sendMessageToGemini(messages, input);
+    try {
+        const responseText = await sendMessageToGemini(messages, input);
+        const modelMsg: ChatMessage = { id: (Date.now() + 1).toString(), role: 'model', text: responseText, timestamp: Date.now() };
+        setMessages(prev => [...prev, modelMsg]);
+    } catch (e) {
+        addSystemMessage("Error: Neural Uplink Failed.");
+    }
     
-    const modelMsg: ChatMessage = { id: (Date.now() + 1).toString(), role: 'model', text: responseText, timestamp: Date.now() };
-    setMessages(prev => [...prev, modelMsg]);
     setLoading(false);
   };
 
   const handleQuickChip = (text: string) => {
       if (text === "Run Diagnostics") {
-          setInput("Run Diagnostics");
-          // Optionally auto-submit:
-          // setTimeout(() => handleSend(), 0);
+          setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', text, timestamp: Date.now() }]);
+          runDiagnostics();
       } else {
           setInput(text);
       }

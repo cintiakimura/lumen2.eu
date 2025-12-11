@@ -14,7 +14,6 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
       const token = await getToken(messaging, { vapidKey: VAPID_KEY });
       if (token) {
         console.log('FCM Token:', token);
-        // In a real app, you would send this token to your backend (e.g., Firestore user profile)
         return token;
       } else {
         console.log('No registration token available.');
@@ -28,10 +27,13 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
   return null;
 };
 
-export const onMessageListener = () =>
-  new Promise((resolve) => {
-    if (!messaging) return;
-    onMessage(messaging, (payload) => {
-      resolve(payload);
-    });
-  });
+export const onMessageListener = (callback: (payload: any) => void) => {
+  if (!messaging) return;
+  try {
+      return onMessage(messaging, (payload) => {
+          callback(payload);
+      });
+  } catch (e) {
+      console.warn("Messaging listener setup failed:", e);
+  }
+};

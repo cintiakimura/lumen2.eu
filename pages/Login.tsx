@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Loader2, ShieldCheck, ChevronRight, User, Terminal, Briefcase, Building2, Lightbulb } from 'lucide-react';
+import { Loader2, ShieldCheck, ChevronRight, User, Terminal, Briefcase, Building2, Lightbulb, AlertTriangle } from 'lucide-react';
 import { MOCK_USERS } from '../constants';
 import { UserRole } from '../types';
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
@@ -54,7 +53,8 @@ const Login = () => {
 
   const handleGoogleSignIn = async () => {
       if (!auth) {
-          setError("Auth service unavailable (Offline Mode)");
+          setError("Auth service unavailable (Offline Mode). Please use a Demo Account.");
+          setShowDemo(true);
           return;
       }
       try {
@@ -79,7 +79,23 @@ const Login = () => {
           }
       } catch (error: any) {
           console.error("Google Sign In Error", error);
-          setError("Google Sign-In failed: " + error.message);
+          if (error.code === 'auth/api-key-not-valid') {
+             setError("Configuration Error: Invalid Firebase API Key. Please use a Demo Account below.");
+             setShowDemo(true);
+          } else if (error.code === 'auth/unauthorized-domain' || error.message?.includes('unauthorized-domain')) {
+             // Specific handling for domain mismatch in preview environments
+             setError("Preview Environment: Domain not authorized for Google Sign-In. Switched to Demo Mode.");
+             setShowDemo(true);
+             // Scroll to bottom to ensure user sees demo options
+             setTimeout(() => {
+                 const el = document.getElementById('demo-accounts');
+                 if(el) el.scrollIntoView({ behavior: 'smooth' });
+             }, 100);
+          } else if (error.code === 'auth/popup-closed-by-user') {
+             setError("Sign-in cancelled.");
+          } else {
+             setError("Google Sign-In failed: " + error.message);
+          }
       }
   };
 
@@ -211,8 +227,8 @@ const Login = () => {
 
             {error && (
               <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 p-3 rounded-lg flex items-center gap-2 animate-in fade-in">
-                <ShieldCheck size={14} />
-                {error}
+                <AlertTriangle size={14} className="shrink-0" />
+                <span>{error}</span>
               </div>
             )}
 
@@ -235,7 +251,7 @@ const Login = () => {
 
           </form>
 
-          <div className="mt-8 pt-6 border-t border-white/5 text-center">
+          <div id="demo-accounts" className="mt-8 pt-6 border-t border-white/5 text-center">
              <button 
                 onClick={() => setShowDemo(!showDemo)}
                 className="text-xs text-gray-500 hover:text-white underline underline-offset-4 font-mono"

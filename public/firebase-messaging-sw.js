@@ -1,3 +1,4 @@
+
 /* eslint-disable no-undef */
 // Give the service worker access to Firebase Messaging.
 // Note that we can only use importScripts() in a ServiceWorker.
@@ -6,7 +7,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-comp
 
 // Initialize the Firebase app in the service worker by passing in the messagingSenderId.
 firebase.initializeApp({
-  messagingSenderId: "914900569220"
+  messagingSenderId: "82315322240"
 });
 
 // Retrieve an instance of Firebase Messaging so that it can handle background

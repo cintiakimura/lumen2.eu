@@ -1,5 +1,3 @@
-
-
 import { GoogleGenAI } from "@google/genai";
 
 let client: GoogleGenAI | null = null;
@@ -25,7 +23,10 @@ export const checkGeminiConnection = async (): Promise<boolean> => {
             contents: 'ping',
         });
         return true;
-    } catch (e) {
+    } catch (e: any) {
+        if (e.message?.includes('429') || e.message?.includes('402')) {
+            console.error("Billing or Quota Error: Please check your Google Cloud Billing setup.");
+        }
         return false;
     }
 };
@@ -47,8 +48,10 @@ export const sendMessageToGemini = async (history: { role: 'user' | 'model'; tex
 
     const result = await chat.sendMessage({ message: newMessage });
     return result.text || "No response received.";
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Error:", error);
+    if (error.message?.includes('429')) return "Error: System Overload (Quota Exceeded). Please try again later.";
+    if (error.message?.includes('API key')) return "Error: Neural Link Invalid. Check API Key configuration.";
     return "Error connecting to neural core. Please try again.";
   }
 };
@@ -87,8 +90,15 @@ export const gradeSubmissionAI = async (task: string, response: string): Promise
         const text = result.text || "{}";
         const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(cleanedText);
-    } catch (e) {
+    } catch (e: any) {
         console.error("Grading Error:", e);
+        if (e.message?.includes('429')) {
+             return {
+                score: 0,
+                feedback: { overall: "Grading Service Busy (Quota Limit). Try again shortly.", criteria: [] },
+                reflection_prompt: "N/A"
+            };
+        }
         return {
             score: 0,
             feedback: { overall: "System Error during grading.", criteria: [] },
