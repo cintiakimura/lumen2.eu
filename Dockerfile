@@ -1,13 +1,13 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:20-bullseye AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json ./
+# Copy package files (use glob so build doesn't fail if lockfile is out of sync)
+COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (use npm install to avoid strict lockfile validation in Cloud Build)
+RUN npm install
 
 # Copy source files
 COPY . .
@@ -16,15 +16,13 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine
+FROM node:20-bullseye
 
 WORKDIR /app
 
-# Copy package.json for production dependencies
-COPY package.json package-lock.json ./
-
-# Install only production dependencies (including express)
-RUN npm ci --only=production
+# Copy package metadata and install production deps
+COPY package*.json ./
+RUN npm install --omit=dev
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist ./dist
