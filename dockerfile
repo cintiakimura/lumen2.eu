@@ -36,8 +36,8 @@ RUN a2enmod rewrite
 RUN a2ensite 000-default.conf
 RUN service apache2 restart
 
-# Expose the port your web server listens on (Apache default is 80)
-EXPOSE 80
+# Expose the port your web server listens on (Apache default is 8080)
+EXPOSE 8080
 
 # Command to run your application when the container starts
 # For Apache, this typically keeps the server running in the foreground
