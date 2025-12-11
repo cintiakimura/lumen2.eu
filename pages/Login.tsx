@@ -78,22 +78,27 @@ const Login = () => {
               }
           }
       } catch (error: any) {
-          console.error("Google Sign In Error", error);
+          // Suppress console errors for expected flows to avoid "deployment error" confusion
           if (error.code === 'auth/api-key-not-valid') {
+             console.warn("Google Sign In Config Error:", error.message);
              setError("Configuration Error: Invalid Firebase API Key. Please use a Demo Account below.");
              setShowDemo(true);
           } else if (error.code === 'auth/unauthorized-domain' || error.message?.includes('unauthorized-domain')) {
+             console.warn("Google Sign In Domain Error:", error.message);
              // Specific handling for domain mismatch in preview environments
              setError("Preview Environment: Domain not authorized for Google Sign-In. Switched to Demo Mode.");
              setShowDemo(true);
-             // Scroll to bottom to ensure user sees demo options
+             // Ensure the UI updates before scrolling
              setTimeout(() => {
                  const el = document.getElementById('demo-accounts');
-                 if(el) el.scrollIntoView({ behavior: 'smooth' });
+                 if(el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
              }, 100);
           } else if (error.code === 'auth/popup-closed-by-user') {
+             console.warn("Google Sign In Cancelled");
              setError("Sign-in cancelled.");
           } else {
+             // Only log actual unexpected errors
+             console.error("Google Sign In Error", error);
              setError("Google Sign-In failed: " + error.message);
           }
       }
